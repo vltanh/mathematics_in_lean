@@ -180,7 +180,22 @@ end Int
 
 theorem sq_add_sq_eq_zero {α : Type*} [LinearOrderedRing α] (x y : α) :
     x ^ 2 + y ^ 2 = 0 ↔ x = 0 ∧ y = 0 := by
-  sorry
+  constructor
+  · intro h
+    by_contra h'
+    simp only [not_and_or] at h'
+    push_neg at h'
+    rcases h' with (h'' | h'')
+    · have : x ^ 2 + y ^ 2 > 0 := add_pos_of_pos_of_nonneg (pow_two_pos_of_ne_zero h'') (sq_nonneg y)
+      have : x ^ 2 + y ^ 2 ≠ 0 := ne_of_gt this
+      contradiction
+    · have : x ^ 2 + y ^ 2 > 0 := add_pos_of_nonneg_of_pos (sq_nonneg x) (pow_two_pos_of_ne_zero h'')
+      have : x ^ 2 + y ^ 2 ≠ 0 := ne_of_gt this
+      contradiction
+  · intro ⟨h1, h2⟩
+    rw [h1, h2]
+    simp only [sq, mul_zero, add_zero]
+
 namespace GaussInt
 
 def norm (x : GaussInt) :=
@@ -188,13 +203,27 @@ def norm (x : GaussInt) :=
 
 @[simp]
 theorem norm_nonneg (x : GaussInt) : 0 ≤ norm x := by
-  sorry
+  exact add_nonneg (sq_nonneg x.re) (sq_nonneg x.im)
+
 theorem norm_eq_zero (x : GaussInt) : norm x = 0 ↔ x = 0 := by
-  sorry
+  rw [norm]
+  rw [GaussInt.zero_def, GaussInt.ext_iff]
+  exact sq_add_sq_eq_zero x.re x.im
+
 theorem norm_pos (x : GaussInt) : 0 < norm x ↔ x ≠ 0 := by
-  sorry
+  constructor
+  · intro hpos heq
+    rw [heq] at hpos
+    contradiction
+  · contrapose
+    push_neg
+    intro h
+    exact (norm_eq_zero x).mp (le_antisymm h (norm_nonneg x))
+
 theorem norm_mul (x y : GaussInt) : norm (x * y) = norm x * norm y := by
-  sorry
+  simp [norm]
+  linarith
+
 def conj (x : GaussInt) : GaussInt :=
   ⟨x.re, -x.im⟩
 
