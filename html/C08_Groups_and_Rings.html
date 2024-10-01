@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>8. Groups and Rings &mdash; Mathematics in Lean 0.1 documentation</title>
@@ -13,16 +13,16 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
         <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="9. Topology" href="C09_Topology.html" />
+    <link rel="next" title="9. Linear algebra" href="C09_Linear_Algebra.html" />
     <link rel="prev" title="7. Hierarchies" href="C07_Hierarchies.html" /> 
 </head>
 
@@ -31,11 +31,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Mathematics in Lean
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Mathematics in Lean
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -67,9 +71,10 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="C09_Topology.html">9. Topology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="C10_Differential_Calculus.html">10. Differential Calculus</a></li>
-<li class="toctree-l1"><a class="reference internal" href="C11_Integration_and_Measure_Theory.html">11. Integration and Measure Theory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="C09_Linear_Algebra.html">9. Linear algebra</a></li>
+<li class="toctree-l1"><a class="reference internal" href="C10_Topology.html">10. Topology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="C11_Differential_Calculus.html">11. Differential Calculus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="C12_Integration_and_Measure_Theory.html">12. Integration and Measure Theory</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
@@ -88,8 +93,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li><span class="section-number">8. </span>Groups and Rings</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">8. </span>Groups and Rings</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/C08_Groups_and_Rings.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -1091,7 +1096,7 @@ a type <code class="docutils literal notranslate"><span class="pre">&#963;</span
 <code class="docutils literal notranslate"><span class="pre">MvPolynomial.X</span> <span class="pre">i</span></code>. (As usual, one can open the <code class="docutils literal notranslate"><span class="pre">MVPolynomial</span></code> namespace to shorten this
 to <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">i</span></code>.)
 For instance, if we want two indeterminates we can use
-<code class="docutils literal notranslate"><span class="pre">Fin</span> <span class="pre">2</span></code> as <code class="docutils literal notranslate"><span class="pre">&#963;</span></code> and write the polynomial defining the unit circle in <span class="math notranslate nohighlight">\(\mathbb{R}^2\)</span> as:</p>
+<code class="docutils literal notranslate"><span class="pre">Fin</span> <span class="pre">2</span></code> as <code class="docutils literal notranslate"><span class="pre">&#963;</span></code> and write the polynomial defining the unit circle in <span class="math notranslate nohighlight">\(\mathbb{R}^2`\)</span> as:</p>
 <div class="highlight-lean notranslate"><div class="highlight"><pre><span></span><span class="kn">open</span> <span class="n">MvPolynomial</span>
 
 <span class="kd">def</span> <span class="n">circleEquation</span> <span class="o">:</span> <span class="n">MvPolynomial</span> <span class="o">(</span><span class="n">Fin</span> <span class="mi">2</span><span class="o">)</span> <span class="n">&#8477;</span> <span class="o">:=</span> <span class="n">X</span> <span class="mi">0</span> <span class="bp">^</span> <span class="mi">2</span> <span class="bp">+</span> <span class="n">X</span> <span class="mi">1</span> <span class="bp">^</span> <span class="mi">2</span> <span class="bp">-</span> <span class="mi">1</span>
@@ -1114,7 +1119,7 @@ determined by the number of arguments and some type <code class="docutils litera
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="C07_Hierarchies.html" class="btn btn-neutral float-left" title="7. Hierarchies" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="C09_Topology.html" class="btn btn-neutral float-right" title="9. Topology" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="C09_Linear_Algebra.html" class="btn btn-neutral float-right" title="9. Linear algebra" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
