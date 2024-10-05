@@ -6,15 +6,29 @@ open Set Filter Topology
 def principal {α : Type*} (s : Set α) : Filter α
     where
   sets := { t | s ⊆ t }
-  univ_sets := sorry
-  sets_of_superset := sorry
-  inter_sets := sorry
+  univ_sets := subset_univ s
+  sets_of_superset := Subset.trans
+  inter_sets := subset_inter
 
 example : Filter ℕ :=
   { sets := { s | ∃ a, ∀ b, a ≤ b → b ∈ s }
-    univ_sets := sorry
-    sets_of_superset := sorry
-    inter_sets := sorry }
+    univ_sets := by
+      use 0
+      intro _ _
+      trivial
+    sets_of_superset := by
+      intro x y ⟨a, ha⟩ hxy
+      use a
+      intro b hb
+      exact hxy (ha b hb)
+    inter_sets := by
+      intro x y ⟨ax, hx⟩ ⟨ay, hy⟩
+      use max ax ay
+      intro b hb
+      apply mem_inter
+      · exact hx b (le_of_max_le_left hb)
+      · exact hy b (le_of_max_le_right hb)
+  }
 
 def Tendsto₁ {X Y : Type*} (f : X → Y) (F : Filter X) (G : Filter Y) :=
   ∀ V ∈ G, f ⁻¹' V ∈ F
@@ -34,7 +48,12 @@ example {X Y : Type*} (f : X → Y) (F : Filter X) (G : Filter Y) :
 
 example {X Y Z : Type*} {F : Filter X} {G : Filter Y} {H : Filter Z} {f : X → Y} {g : Y → Z}
     (hf : Tendsto₁ f F G) (hg : Tendsto₁ g G H) : Tendsto₁ (g ∘ f) F H :=
-  sorry
+  fun V hVH => hf (g⁻¹' V) (hg V hVH)
+  -- calc
+  --   map (g ∘ f) F = map g (map f F) := by rw [map_map]
+  --   _             ≤ map g G := map_mono hf
+  --   _             ≤ H := hg
+
 
 variable (f : ℝ → ℝ) (x₀ y₀ : ℝ)
 
@@ -57,7 +76,27 @@ example : 𝓝 (x₀, y₀) = 𝓝 x₀ ×ˢ 𝓝 y₀ :=
 example (f : ℕ → ℝ × ℝ) (x₀ y₀ : ℝ) :
     Tendsto f atTop (𝓝 (x₀, y₀)) ↔
       Tendsto (Prod.fst ∘ f) atTop (𝓝 x₀) ∧ Tendsto (Prod.snd ∘ f) atTop (𝓝 y₀) :=
-  sorry
+  by
+  constructor
+  · intro h
+    constructor
+    · calc
+        map (Prod.fst ∘ f) atTop = map Prod.fst (map f atTop) := by rw [map_map]
+        _ ≤ map Prod.fst (𝓝 (x₀, y₀)) := map_mono h
+        _ = map Prod.fst (𝓝 x₀ ×ˢ 𝓝 y₀) := by rw [nhds_prod_eq]
+        _ = 𝓝 x₀ := map_fst_prod _ _
+    · calc
+        map (Prod.snd ∘ f) atTop = map Prod.snd (map f atTop) := by rw [map_map]
+        _ ≤ map Prod.snd (𝓝 (x₀, y₀)) := map_mono h
+        _ = map Prod.snd (𝓝 x₀ ×ˢ 𝓝 y₀) := by rw [nhds_prod_eq]
+        _ = 𝓝 y₀ := map_snd_prod _ _
+  · intro ⟨h, h'⟩
+    rw [Tendsto] at *
+    rw [← map_map] at h h'
+    rw [map_le_iff_le_comap] at h h'
+    convert le_inf_iff.mpr ⟨h, h'⟩
+    rw [nhds_prod_eq]
+    rfl
 
 example (x₀ : ℝ) : HasBasis (𝓝 x₀) (fun ε : ℝ ↦ 0 < ε) fun ε ↦ Ioo (x₀ - ε) (x₀ + ε) :=
   nhds_basis_Ioo_pos x₀
@@ -101,5 +140,4 @@ example (P Q R : ℕ → Prop) (hP : ∀ᶠ n in atTop, P n) (hQ : ∀ᶠ n in a
 
 example (u : ℕ → ℝ) (M : Set ℝ) (x : ℝ) (hux : Tendsto u atTop (𝓝 x))
     (huM : ∀ᶠ n in atTop, u n ∈ M) : x ∈ closure M :=
-  sorry
-
+  mem_closure_iff_clusterPt.mpr (neBot_of_le (le_inf hux (le_principal_iff.mpr huM)))
