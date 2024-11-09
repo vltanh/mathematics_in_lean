@@ -92,24 +92,50 @@ example {ι : Type*} [CompleteSpace E] {g : ι → E →L[𝕜] F} (h : ∀ x, �
   -- sequence of subsets consisting of those `x : E` with norms `‖g i x‖` bounded by `n`
   let e : ℕ → Set E := fun n ↦ ⋂ i : ι, { x : E | ‖g i x‖ ≤ n }
   -- each of these sets is closed
-  have hc : ∀ n : ℕ, IsClosed (e n)
-  sorry
+  have hc : ∀ n : ℕ, IsClosed (e n) := by
+    intro n
+    apply isClosed_iInter
+    intro i
+    exact isClosed_le (g i).cont.norm continuous_const
   -- the union is the entire space; this is where we use `h`
-  have hU : (⋃ n : ℕ, e n) = univ
-  sorry
+  have hU : (⋃ n : ℕ, e n) = univ := by
+    rw [iUnion_eq_univ_iff]
+    intro x
+    rcases h x with ⟨C, hgixleC⟩
+    rcases exists_nat_ge C with ⟨i, hClei⟩
+    use i
+    rw [mem_iInter]
+    intro j
+    rw [mem_setOf]
+    exact le_trans (hgixleC j) hClei
   /- apply the Baire category theorem to conclude that for some `m : ℕ`,
        `e m` contains some `x` -/
-  obtain ⟨m, x, hx⟩ : ∃ m, ∃ x, x ∈ interior (e m) := sorry
-  obtain ⟨ε, ε_pos, hε⟩ : ∃ ε > 0, ball x ε ⊆ interior (e m) := sorry
-  obtain ⟨k, hk⟩ : ∃ k : 𝕜, 1 < ‖k‖ := sorry
+  obtain ⟨m, x, hx⟩ : ∃ m, ∃ x, x ∈ interior (e m) := nonempty_interior_of_iUnion_of_closed hc hU
+  obtain ⟨ε, ε_pos, hε⟩ : ∃ ε > 0, ball x ε ⊆ interior (e m) := isOpen_iff.mp isOpen_interior x hx
+  obtain ⟨k, hk⟩ : ∃ k : 𝕜, 1 < ‖k‖ := NormedField.exists_one_lt_norm 𝕜
   -- show all elements in the ball have norm bounded by `m` after applying any `g i`
-  have real_norm_le : ∀ z ∈ ball x ε, ∀ (i : ι), ‖g i z‖ ≤ m
-  sorry
-  have εk_pos : 0 < ε / ‖k‖ := sorry
+  have real_norm_le : ∀ z ∈ ball x ε, ∀ (i : ι), ‖g i z‖ ≤ m := by
+    intro z hxinbxε i
+    have := interior_subset (hε hxinbxε)
+    rw [mem_iInter] at this
+    exact this i
+  have εk_pos : 0 < ε / ‖k‖ := div_pos ε_pos (lt_trans zero_lt_one hk)
   refine ⟨(m + m : ℕ) / (ε / ‖k‖), fun i ↦ ContinuousLinearMap.opNorm_le_of_shell ε_pos ?_ hk ?_⟩
-  sorry
-  sorry
-
+  exact div_nonneg (Nat.cast_nonneg' (m + m)) (le_of_lt εk_pos)
+  intro y hεdivkley hyltε
+  calc
+    ‖(g i) y‖ = ‖(g i) (y + x - x)‖ := by rw [add_sub_cancel_right]
+    _ = ‖(g i) (y + x) - (g i) x‖ := by rw [(g i).map_sub]
+    _ ≤ ‖(g i) (y + x)‖ + ‖(g i) x‖ := norm_sub_le ((g i) (y + x)) ((g i) x)
+    _ ≤ ↑m + ↑m := by
+      apply add_le_add
+      · apply real_norm_le
+        rw [mem_ball_iff_norm, add_sub_cancel_right]
+        exact hyltε
+      · exact real_norm_le x (mem_ball_self ε_pos) i
+    _ = ↑(m + m) := Eq.symm (Nat.cast_add m m)
+    _ ≤ ↑(m + m) * (‖y‖ / (ε / ‖k‖)) := le_mul_of_one_le_right (Nat.cast_nonneg' (m + m)) ((one_le_div₀ εk_pos).mpr hεdivkley)
+    _ ≤ ↑(m + m) / (ε / ‖k‖) * ‖y‖ := by rw [mul_comm_div]
 end
 
 open Asymptotics
