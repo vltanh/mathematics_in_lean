@@ -171,7 +171,6 @@ theorem abs_mod'_le (a b : ℤ) (h : 0 < b) : |mod' a b| ≤ b / 2 := by
   have := Int.emod_lt_of_pos (a + b / 2) h
   have := Int.ediv_add_emod b 2
   have := Int.emod_lt_of_pos b zero_lt_two
-  revert this; intro this -- FIXME, this should not be needed
   linarith
 
 theorem mod'_eq (a b : ℤ) : mod' a b = a - b * div' a b := by linarith [div'_add_mod' a b]
@@ -182,19 +181,15 @@ theorem sq_add_sq_eq_zero {α : Type*} [LinearOrderedRing α] (x y : α) :
     x ^ 2 + y ^ 2 = 0 ↔ x = 0 ∧ y = 0 := by
   constructor
   · intro h
-    by_contra h'
-    simp only [not_and_or] at h'
-    push_neg at h'
-    rcases h' with (h'' | h'')
-    · have : x ^ 2 + y ^ 2 > 0 := add_pos_of_pos_of_nonneg (pow_two_pos_of_ne_zero h'') (sq_nonneg y)
-      have : x ^ 2 + y ^ 2 ≠ 0 := ne_of_gt this
-      contradiction
-    · have : x ^ 2 + y ^ 2 > 0 := add_pos_of_nonneg_of_pos (sq_nonneg x) (pow_two_pos_of_ne_zero h'')
-      have : x ^ 2 + y ^ 2 ≠ 0 := ne_of_gt this
-      contradiction
+    have h₁ : x^2 ≥ 0 := sq_nonneg x
+    have h₂ : y^2 ≥ 0 := sq_nonneg y
+    have h₃ : x^2 + y^2 ≤ 0 := le_of_eq h
+    have h₄ : x^2 = 0 := eq_zero_of_add_nonpos_left h₁ h₂ h₃
+    have h₅ : y^2 = 0 := eq_zero_of_add_nonpos_right h₁ h₂ h₃
+    exact ⟨pow_eq_zero h₄, pow_eq_zero h₅⟩
   · intro ⟨h1, h2⟩
     rw [h1, h2]
-    simp only [sq, mul_zero, add_zero]
+    rw [sq, mul_zero, add_zero]
 
 namespace GaussInt
 
@@ -221,7 +216,9 @@ theorem norm_pos (x : GaussInt) : 0 < norm x ↔ x ≠ 0 := by
     exact (norm_eq_zero x).mp (le_antisymm h (norm_nonneg x))
 
 theorem norm_mul (x y : GaussInt) : norm (x * y) = norm x * norm y := by
-  simp [norm]
+  rw [GaussInt.mul_def]
+  repeat rw [norm]
+  dsimp
   linarith
 
 def conj (x : GaussInt) : GaussInt :=

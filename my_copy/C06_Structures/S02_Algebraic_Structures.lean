@@ -82,7 +82,7 @@ def addGroupPoint : AddGroup₁ Point where
   add := Point.add
   zero := Point.zero
   neg := Point.neg
-  add_assoc a b c := by simp only [Point.add, add_assoc]
+  add_assoc a b c := by simp only [add, add_assoc]
   zero_add a := by simp only [Point.add, Point.zero, zero_add]
   add_zero a := by simp only [Point.add, Point.zero, add_zero]
   neg_add_cancel a := by simp only [Point.add, Point.neg, Point.zero, neg_add_cancel]
