@@ -53,13 +53,13 @@ theorem neg_add_cancel_left (a b : R) : -a + (a + b) = b := by
 
 -- Prove these:
 theorem add_neg_cancel_right (a b : R) : a + b + -b = a := by
-  sorry
+  rw [add_assoc, MyRing.add_right_neg, MyRing.add_zero]
 
 theorem add_left_cancel {a b c : R} (h : a + b = a + c) : b = c := by
-  sorry
+  rw [← MyRing.neg_add_cancel_left a b, h, MyRing.neg_add_cancel_left]
 
 theorem add_right_cancel {a b c : R} (h : a + b = c + b) : a = c := by
-  sorry
+  rw [← MyRing.add_neg_cancel_right a b, h, MyRing.add_neg_cancel_right]
 
 theorem mul_zero (a : R) : a * 0 = 0 := by
   have h : a * 0 + a * 0 = a * 0 + 0 := by
@@ -67,20 +67,23 @@ theorem mul_zero (a : R) : a * 0 = 0 := by
   rw [add_left_cancel h]
 
 theorem zero_mul (a : R) : 0 * a = 0 := by
-  sorry
+  have h : 0 * a + 0 * a = 0 * a + 0 := by
+    rw [← add_mul, zero_add, MyRing.add_zero]
+  rw [MyRing.add_left_cancel h]
 
 theorem neg_eq_of_add_eq_zero {a b : R} (h : a + b = 0) : -a = b := by
-  sorry
+  rw [← MyRing.neg_add_cancel_left a b, h, MyRing.add_zero]
 
 theorem eq_neg_of_add_eq_zero {a b : R} (h : a + b = 0) : a = -b := by
-  sorry
+  rw [← MyRing.add_neg_cancel_right a b, h, zero_add]
 
 theorem neg_zero : (-0 : R) = 0 := by
   apply neg_eq_of_add_eq_zero
   rw [add_zero]
 
 theorem neg_neg (a : R) : - -a = a := by
-  sorry
+  apply MyRing.neg_eq_of_add_eq_zero
+  rw [neg_add_cancel]
 
 end MyRing
 
@@ -103,13 +106,13 @@ namespace MyRing
 variable {R : Type*} [Ring R]
 
 theorem self_sub (a : R) : a - a = 0 := by
-  sorry
+  rw [sub_eq_add_neg, MyRing.add_right_neg]
 
 theorem one_add_one_eq_two : 1 + 1 = (2 : R) := by
   norm_num
 
 theorem two_mul (a : R) : 2 * a = a + a := by
-  sorry
+  rw [← one_add_one_eq_two, add_mul, one_mul]
 
 end MyRing
 
@@ -131,16 +134,63 @@ variable {G : Type*} [Group G]
 
 namespace MyGroup
 
-theorem mul_inv_cancel (a : G) : a * a⁻¹ = 1 := by
-  sorry
+-- theorem mul_inv_cancel (a : G) : a * a⁻¹ = 1 := by
+--   rw [← one_mul (a * a⁻¹)]
+--   nth_rw 1 [← inv_mul_cancel (a * a⁻¹)]
+--   rw [mul_assoc]
+--   rw [mul_assoc a]
+--   rw [← mul_assoc (a⁻¹)]
+--   rw [inv_mul_cancel]
+--   rw [one_mul]
+--   rw [inv_mul_cancel]
 
-theorem mul_one (a : G) : a * 1 = a := by
-  sorry
+theorem mul_inv_cancel (a : G) : a * a⁻¹ = 1 :=
+  calc
+    a * a⁻¹ = 1 * (a * a⁻¹) := by rw [one_mul]
+    _ = (a * a⁻¹)⁻¹ * (a * a⁻¹) * (a * a⁻¹) := by rw [inv_mul_cancel]
+    _ = (a * a⁻¹)⁻¹ * (a * a⁻¹ * (a * a⁻¹)) := by rw [mul_assoc]
+    _ = (a * a⁻¹)⁻¹ * (a * (a⁻¹ * (a * a⁻¹))) := by rw [mul_assoc]
+    _ = (a * a⁻¹)⁻¹ * (a * ((a⁻¹ * a) * a⁻¹)) := by rw [mul_assoc]
+    _ = (a * a⁻¹)⁻¹ * (a * (1 * a⁻¹)) := by rw [inv_mul_cancel]
+    _ = (a * a⁻¹)⁻¹ * (a * a⁻¹) := by rw [one_mul]
+    _ = 1 := by rw [inv_mul_cancel]
 
-theorem mul_inv_rev (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ := by
-  sorry
+-- theorem mul_one (a : G) : a * 1 = a := by
+--   rw [← inv_mul_cancel a]
+--   rw [← mul_assoc]
+--   rw [MyGroup.mul_inv_cancel]
+--   rw [one_mul]
+
+theorem mul_one (a : G) : a * 1 = a :=
+  calc
+    a * 1 = a * (a⁻¹ * a) := by rw [inv_mul_cancel]
+    _ = (a * a⁻¹) * a := by rw [mul_assoc]
+    _ = 1 * a := by rw [MyGroup.mul_inv_cancel]
+    _ = a := by rw [one_mul]
+
+-- theorem mul_inv_rev (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ := by
+--   rw [← one_mul (a * b)⁻¹]
+--   rw [← inv_mul_cancel b]
+--   nth_rw 2 [← one_mul b]
+--   rw [← inv_mul_cancel a]
+--   rw [mul_assoc a⁻¹]
+--   rw [← mul_assoc b⁻¹]
+--   rw [mul_assoc]
+--   rw [MyGroup.mul_inv_cancel]
+--   rw [MyGroup.mul_one]
+
+theorem mul_inv_rev (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ :=
+  calc
+    (a * b)⁻¹ = 1 * (a * b)⁻¹ := by rw [one_mul]
+    _ = b⁻¹ * b * (a * b)⁻¹ := by rw [inv_mul_cancel]
+    _ = b⁻¹ * (1 * b) * (a * b)⁻¹ := by rw [one_mul]
+    _ = b⁻¹ * (a⁻¹ * a * b) * (a * b)⁻¹ := by rw [inv_mul_cancel]
+    _ = b⁻¹ * (a⁻¹ * (a * b)) * (a * b)⁻¹ := by rw [mul_assoc (a⁻¹)]
+    _ = b⁻¹ * a⁻¹ * (a * b) * (a * b)⁻¹ := by rw [← mul_assoc (b⁻¹)]
+    _ = b⁻¹ * a⁻¹ * (a * b * (a * b)⁻¹) := by rw [mul_assoc]
+    _ = b⁻¹ * a⁻¹ * 1 := by rw [MyGroup.mul_inv_cancel]
+    _ = b⁻¹ * a⁻¹ := by rw [MyGroup.mul_one]
 
 end MyGroup
 
 end
-
