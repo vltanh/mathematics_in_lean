@@ -50,7 +50,7 @@ example {P : X → Prop} {x : X} (h : ∀ᶠ y in 𝓝 x, P y) : ∀ᶠ y in �
 example {α : Type*} (n : α → Filter α) (H₀ : ∀ a, pure a ≤ n a)
     (H : ∀ a : α, ∀ p : α → Prop, (∀ᶠ x in n a, p x) → ∀ᶠ y in n a, ∀ᶠ x in n y, p x) :
     ∀ a, ∀ s ∈ n a, ∃ t ∈ n a, t ⊆ s ∧ ∀ a' ∈ t, s ∈ n a' :=
-  sorry
+  fun a s hsna => ⟨{x | s ∈ n x}, H a s hsna, fun x hsnx => H₀ x hsnx, fun _ hsna' => hsna'⟩
 
 end
 
@@ -105,13 +105,42 @@ theorem aux {X Y A : Type*} [TopologicalSpace X] {c : A → X}
       {f : A → Y} {x : X} {F : Filter Y}
       (h : Tendsto f (comap c (𝓝 x)) F) {V' : Set Y} (V'_in : V' ∈ F) :
     ∃ V ∈ 𝓝 x, IsOpen V ∧ c ⁻¹' V ⊆ f ⁻¹' V' := by
-  sorry
+  rcases h V'_in with ⟨U, hUinNx, hcinvUssfinvV'⟩
+  rw [mem_nhds_iff] at hUinNx
+  rcases hUinNx with ⟨V, hVssU, hopenV, hxinV⟩
+  use V
+  exact ⟨
+    IsOpen.mem_nhds hopenV hxinV,
+    hopenV,
+    fun _ hxincinvV => hcinvUssfinvV' (hVssU hxincinvV),
+  ⟩
 
 example [TopologicalSpace X] [TopologicalSpace Y] [T3Space Y] {A : Set X}
     (hA : ∀ x, x ∈ closure A) {f : A → Y} (f_cont : Continuous f)
     (hf : ∀ x : X, ∃ c : Y, Tendsto f (comap (↑) (𝓝 x)) (𝓝 c)) :
     ∃ φ : X → Y, Continuous φ ∧ ∀ a : A, φ a = f a := by
-  sorry
+  choose φ hφ using hf
+  use φ
+  constructor
+  · rw [continuous_iff_continuousAt]
+    intro x
+    suffices ∀ V' ∈ 𝓝 (φ x), IsClosed V' → φ ⁻¹' V' ∈ 𝓝 x by
+      rw [continuousAt_def]
+      intro A hAinNφx
+      rcases (closed_nhds_basis (φ x)).mem_iff.mp hAinNφx with ⟨V', ⟨hV'inNφx, hclosedV'⟩, hV'ssA⟩
+      exact mem_of_superset (this V' hV'inNφx hclosedV') (preimage_mono hV'ssA)
+    intro V' hV'inNφx hclosedV'
+    rcases aux (hφ x) hV'inNφx with ⟨V, hVinNx, hopenV, hcinvVssfinvV'⟩
+    apply mem_of_superset hVinNx
+    intro y hyV
+    have hVinNy: V ∈ 𝓝 y := hopenV.mem_nhds hyV
+    have := mem_closure_iff_comap_neBot.mp (hA y)
+    apply hclosedV'.mem_of_tendsto (hφ y)
+    exact mem_of_superset (preimage_mem_comap hVinNy) hcinvVssfinvV'
+  · intro a
+    apply tendsto_nhds_unique _ f_cont.continuousAt
+    rw [nhds_induced]
+    exact hφ a
 
 #check HasBasis.tendsto_right_iff
 
@@ -142,10 +171,22 @@ example {x : X} {F : Filter X} {G : Filter Y} (H : ClusterPt x F) {f : X → Y}
 example [TopologicalSpace Y] {f : X → Y} (hf : Continuous f) {s : Set X} (hs : IsCompact s) :
     IsCompact (f '' s) := by
   intro F F_ne F_le
-  have map_eq : map f (𝓟 s ⊓ comap f F) = 𝓟 (f '' s) ⊓ F := by sorry
-  have Hne : (𝓟 s ⊓ comap f F).NeBot := by sorry
+  have map_eq : map f (𝓟 s ⊓ comap f F) = 𝓟 (f '' s) ⊓ F := by
+    rw [Filter.push_pull]
+    rw [map_principal]
+  have Hne : (𝓟 s ⊓ comap f F).NeBot := by
+    apply NeBot.of_map
+    rw [map_eq]
+    rw [inf_of_le_right F_le]
+    exact F_ne
   have Hle : 𝓟 s ⊓ comap f F ≤ 𝓟 s := inf_le_left
-  sorry
+  rcases hs Hle with ⟨x, hxs, hclsptx⟩
+  use f x
+  constructor
+  · exact mem_image_of_mem f hxs
+  · apply hclsptx.map hf.continuousAt
+    rw [Tendsto, map_eq]
+    exact inf_le_right
 
 example {ι : Type*} {s : Set X} (hs : IsCompact s) (U : ι → Set X) (hUo : ∀ i, IsOpen (U i))
     (hsU : s ⊆ ⋃ i, U i) : ∃ t : Finset ι, s ⊆ ⋃ i ∈ t, U i :=
