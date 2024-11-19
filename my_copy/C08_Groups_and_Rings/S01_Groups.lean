@@ -32,6 +32,19 @@ example {G H : Type*} [Group G] [Group H] (x y : G) (f : G →* H) : f (x * y) =
 example {G H : Type*} [Group G] [Group H] (x : G) (f : G →* H) : f (x⁻¹) = (f x)⁻¹ :=
   f.map_inv x
 
+-- You can prove identity preservation by operation preservation
+-- and group properties regarding inverse
+example {G H : Type*} [Group G] [Group H] (f : G → H)
+  (h_mul : ∀ x y, f (x * y) = f x * f y) : G →* H :=
+{
+    map_mul' := h_mul,
+    map_one' := calc
+      f 1 = f 1 * f 1 * (f 1)⁻¹ := by group
+      _ = f (1 * 1) * (f 1)⁻¹ := by rw [h_mul]
+      _ = f 1 * (f 1)⁻¹ := by group
+      _ = 1 := by group
+}
+
 example {G H : Type*} [Group G] [Group H] (f : G → H) (h : ∀ x y, f (x * y) = f x * f y) :
     G →* H :=
   MonoidHom.mk' f h
