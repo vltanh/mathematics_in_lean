@@ -71,17 +71,19 @@ example : AddSubgroup ℚ where
   add_mem' := by
     rintro _ _ ⟨n, rfl⟩ ⟨m, rfl⟩
     use n + m
-    simp
+    exact Rat.intCast_add n m
   zero_mem' := by
     use 0
-    simp
+    rfl
   neg_mem' := by
     rintro _ ⟨n, rfl⟩
     use -n
-    simp
+    rfl
 
 example {G : Type*} [Group G] (H : Subgroup G) : Group H := inferInstance
 
+-- H is a term of type Subgroup G
+-- Lean automatically coerces H to the subtype {x : G // x ∈ H}
 example {G : Type*} [Group G] (H : Subgroup G) : Group {x : G // x ∈ H} := inferInstance
 
 example {G : Type*} [Group G] (H H' : Subgroup G) :
@@ -154,16 +156,17 @@ variable {K : Type*} [Group K]
 example (φ : G →* H) (ψ : H →* K) (U : Subgroup K) :
     comap (ψ.comp φ) U = comap φ (comap ψ U) := by
   ext x
-  simp only [Subgroup.mem_comap]
-  rfl
+  rw [mem_comap, mem_comap, mem_comap]
+  rw [MonoidHom.comp_apply]
 
 -- Pushing a subgroup along one homomorphism and then another is equal to
 -- pushing it forward along the composite of the homomorphisms.
 example (φ : G →* H) (ψ : H →* K) (S : Subgroup G) :
     map (ψ.comp φ) S = map ψ (S.map φ) := by
+  -- (prety weird to write S.map φ, should just write map φ S)
   ext y
   constructor
-  · intro ⟨x, hxS, hψφxy⟩
+  · rintro ⟨x, hxS, hψφxy⟩
     use φ x
     constructor
     · use x
@@ -176,6 +179,14 @@ end exercises
 
 open scoped Classical
 
+-- More readable
+-- card G' | card G because card G = card G' * G'.index
+-- from G'.index_mul_card
+example {G : Type*} [Group G] (G' : Subgroup G) : Nat.card G' ∣ Nat.card G := by
+  rw [dvd_def]
+  use G'.index
+  rw [mul_comm]
+  rw [G'.index_mul_card]
 
 example {G : Type*} [Group G] (G' : Subgroup G) : Nat.card G' ∣ Nat.card G :=
   ⟨G'.index, mul_comm G'.index _ ▸ G'.index_mul_card.symm⟩
@@ -186,6 +197,8 @@ example {G : Type*} [Group G] [Finite G] (p : ℕ) {n : ℕ} [Fact p.Prime]
     (hdvd : p ^ n ∣ Nat.card G) : ∃ K : Subgroup G, Nat.card K = p ^ n :=
   Sylow.exists_subgroup_card_pow_prime p hdvd
 
+-- A subgroup H is equal to the bottom subgroup ⊥
+-- iff its cardinality is 1
 lemma eq_bot_iff_card {G : Type*} [Group G] {H : Subgroup G} :
     H = ⊥ ↔ Nat.card H = 1 := by
   suffices (∀ x ∈ H, x = 1) ↔ ∃ x ∈ H, ∀ a ∈ H, a = x by
@@ -200,9 +213,13 @@ lemma eq_bot_iff_card {G : Type*} [Group G] {H : Subgroup G} :
 
 #check card_dvd_of_le
 
+-- If two subgroups have cardinalities that are coprimes
+-- then their intersection (infimum) is the bottom subgroup ⊥
+-- Key idea 1: show that card (H ⊓ K) = 1
+-- Key idea 2: if A ≤ B then card A | card B for subgroups A, B
 lemma inf_bot_of_coprime {G : Type*} [Group G] (H K : Subgroup G)
     (h : (Nat.card H).Coprime (Nat.card K)) : H ⊓ K = ⊥ := by
-  apply eq_bot_iff_card.mpr
+  rw [Subgroup.eq_bot_iff_card]
   have : H ⊓ K ≤ H := inf_le_left
   have hHinfKdvdH := card_dvd_of_le this
   have : H ⊓ K ≤ K := inf_le_right
