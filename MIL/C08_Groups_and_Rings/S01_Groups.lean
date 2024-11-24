@@ -228,6 +228,9 @@ lemma inf_bot_of_coprime {G : Type*} [Group G] (H K : Subgroup G)
 
 open Equiv
 
+-- The smallest subgroup containing all cycles is the entire permutation group
+-- ⊤ here is Subgroup (Perm X)
+-- Implication: every permutation is product of cycles
 example {X : Type*} [Finite X] : Subgroup.closure {σ : Perm X | Perm.IsCycle σ} = ⊤ :=
   Perm.closure_isCycle
 
@@ -246,6 +249,8 @@ def myMorphism : FreeGroup S →* Perm (Fin 5) :=
                      | .b => c[2, 3, 1]
                      | .c => c[2, 3]
 
+-- Try it
+#eval myMorphism ((.of a) * (.of b)⁻¹)
 
 def myGroup := PresentedGroup {.of () ^ 3} deriving Group
 
@@ -264,6 +269,11 @@ end FreeGroup
 
 noncomputable section GroupActions
 
+-- Group action maps each element g in group G
+-- to a bijective function (permutation) on X
+-- Homomorphism: Φ: G → Perm X, g ↦ φ_g
+-- Permutation: φ_g : X → X, x ↦ φ_g(x)
+-- Notation: g • x = φ_g(x)
 example {G X : Type*} [Group G] [MulAction G X] (g g': G) (x : X) :
     g • (g' • x) = (g * g') • x :=
   (mul_smul g g' x).symm
@@ -277,13 +287,59 @@ open MulAction
 example {G X : Type*} [Group G] [MulAction G X] : G →* Equiv.Perm X :=
   toPermHom G X
 
+-- Homomorphism: Φ: G → Perm(G), g → φ_g
+-- Permutation: φ: G → G, h ↦ g * h
+-- Meaning:
+-- G acts on itself by left mul φ_g(h) = g * h
+-- 1) φ_g is a permutation (bijective)
+-- 2) Φ is a homomorphism (operation preserving)
+-- 3) Φ is injective (trivial kernel)
+-- Cayley's Theorem: Every group G is isomorphic to a subgroup
+-- of the symmetric group acting on G.
+-- Since Φ is injective, its G → Range Φ is bijective
+-- so G ≃* Range Φ
 def CayleyIsoMorphism (G : Type*) [Group G] : G ≃* (toPermHom G G).range :=
   Equiv.Perm.subgroupOfMulAction G G
 
+-- Partition X into orbits under a group action
+-- --
+-- orbitRel: defines the equivalence relation (orbit = equivalence class)
+-- x ~ y iff ∃ g ∈ G, g • x = y
+-- --
+-- orbitRel.Quotient G X: quotient of X by the relation
+-- --
+-- Quotient.out' ω: pick an arbitrary element of orbit ω
+-- orbit G x: the orbit of x
+-- orbit G (Quotient.out' ω): set of all elements in the orbit ω
+-- --
+-- (ω : orbitRel.Quotient G X) × (orbit G (Quotient.out' ω)):
+-- all pairs (ω, x) where x is in the orbit ω
+-- --
+-- There is a bijection between X and the dependent product.
 example {G X : Type*} [Group G] [MulAction G X] :
     X ≃ (ω : orbitRel.Quotient G X) × (orbit G (Quotient.out' ω)) :=
   MulAction.selfEquivSigmaOrbits G X
 
+-- orbit G x = {g • x: g ∈ G}
+-- --
+-- G: group, H: subgroup of G
+--
+-- Relation: g₁ ~ g₂ iff g₁⁻¹ * g₂ ∈ H
+-- Theorem: ~ is an equivalence
+-- Proof:
+-- 1) Reflexivity: ∀g, g⁻¹ * g = 1 ∈ H
+-- 2) Symmetry: ∀g₁ g₂, g₁⁻¹ * g₂ ∈ H => (g₁⁻¹ * g₂)⁻¹ = g₂⁻¹ * g₁ ∈ H
+-- 3) Transitivity: ∀ g₁ g₂ g₃, g₁⁻¹ * g₂, g₂⁻¹ * g₃ ∈ H
+--                  => g₁⁻¹ * g₃ = (g₁⁻¹ * g₂) * (g₂⁻¹ * g₃) ∈ H ∎
+--
+-- Fix g ∈ G. g ~ g' => g⁻¹ * g' ∈ H => g' = g * h
+-- Equivalence classes: gH = {g * h : h ∈ H} for g ∈ G
+--
+-- G / H: quotient of G by H
+-- G / H = {gH : g ∈ g}
+-- --
+-- stabilizer G x = {g ∈ G: g • x = x} ≤ G
+-- G / stabilizer G x: quotient of G under the action of the stabilizer of x
 example {G X : Type*} [Group G] [MulAction G X] (x : X) :
     orbit G x ≃ G ⧸ stabilizer G x :=
   MulAction.orbitEquivQuotientStabilizer G x
@@ -298,12 +354,12 @@ lemma conjugate_one (H : Subgroup G) : conjugate 1 H = H := by
   constructor
   · intro hxconj1H
     rcases hxconj1H with ⟨x', hx'H, rfl⟩
-    convert hx'H
-    group
+    rw [one_mul, inv_one, mul_one]
+    exact hx'H
   · intro hxH
     rw [conjugate, mem_mk, Set.mem_setOf]
     use x, hxH
-    group
+    rw [one_mul, inv_one, mul_one]
 
 instance : MulAction G (Subgroup G) where
   smul := conjugate
