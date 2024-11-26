@@ -494,10 +494,11 @@ def iso₁ : K ≃* G ⧸ H := by
   rw [Nat.bijective_iff_injective_and_card]
   constructor
   -- Prove φ|K is injective
-  · -- Ker φ|K = ⊥ => Injective φ|K
+  · -- Prove Ker φ|K = ⊥
     rw [← ker_eq_bot_iff]
+    -- Ker φ|K = (Ker φ) ⊓ K
     rw [φ.ker_restrict K]
-    -- Prove Disjoint (Ker φ) K
+    -- Prove (Ker φ) ⊓ K = ⊥
     apply subgroupOf_eq_bot.mpr
     -- H is a normal subgroup of G => Ker φ = H
     rw [QuotientGroup.ker_mk']
