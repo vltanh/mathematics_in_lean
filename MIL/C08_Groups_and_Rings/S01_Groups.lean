@@ -381,24 +381,65 @@ end GroupActions
 
 noncomputable section QuotientGroup
 
+-- G: group, H: subgroup of G
+-- G / H: left cosets of G by H, called quotient of G by H
+-- not necessarily a group
+-- Ex: G = S₃, H = {e, (1, 2)}
+
+-- H.Normal: ∀ g ∈ G, h ∈ H, g h g⁻¹ ∈ H
+-- Intuition:
+-- 1) g h g⁻¹: conjugate (transform) h ∈ H by g ∈ G
+--    conjugation of any h ∈ H by any g ∈ G stays in H
+-- 2) ∀g, left coset = right coset (gH = Hg)
+--
+-- When H is normal, G / H is a group.
 example {G : Type*} [Group G] (H : Subgroup G) [H.Normal] : Group (G ⧸ H) := inferInstance
 
 example {G : Type*} [Group G] (H : Subgroup G) [H.Normal] : G →* G ⧸ H :=
   QuotientGroup.mk' H
 
+-- Universal property: given
+--   G, M: groups
+--   N: normal subgroup of G
+--   φ: homomorphism from G to M that "ignores" N (N ≤ Ker φ)
+-- then ∃ φ': G / N →* M s.t. φ = φ' ∘ π where
+-- π: G →* G / N: canonical projection (send g ∈ G to left coset gN)
+-- (Everything still works with Monoid M instead.)
 example {G : Type*} [Group G] (N : Subgroup G) [N.Normal] {M : Type*}
-    [Group M] (φ : G →* M) (h : N ≤ MonoidHom.ker φ) : G ⧸ N →* M :=
+    [Monoid M] (φ : G →* M) (h : N ≤ MonoidHom.ker φ) : G ⧸ N →* M :=
   QuotientGroup.lift N φ h
 
+-- Noether's first isomorphism theorem:
+-- G / ker φ is isomorphic to range φ
+--
+-- ker φ is a normal subgroup of G => universal property
+-- ψ: G / ker φ → range φ
+-- φ(g * ker φ) = φ(g)
+--
+-- 1) ψ is injective
+-- 2) ψ is surjective
 example {G : Type*} [Group G] {M : Type*} [Group M] (φ : G →* M) :
-    G ⧸ MonoidHom.ker φ →* MonoidHom.range φ :=
+    G ⧸ MonoidHom.ker φ ≃* MonoidHom.range φ :=
   QuotientGroup.quotientKerEquivRange φ
 
+-- Setup:
+--   G, G': groups
+--   N, N': normal subgroups of G, G'
+--   φ: initial homomorphism
+-- Want:
+--   ψ: G / N → G' / N'
+-- Naive approach: ψ(gN) = φ(g)N'
+-- Challenge: well-defined?
+-- Condition: g₁N = g₂N ⇒ φ(g₁) N' = φ(g₂) N'
+-- Equivalently, φ(N) ≤ N'
+-- Equivalently, N ≤ φ⁻¹(N') (nicer)
 example {G G': Type*} [Group G] [Group G']
     {N : Subgroup G} [N.Normal] {N' : Subgroup G'} [N'.Normal]
     {φ : G →* G'} (h : N ≤ Subgroup.comap φ N') : G ⧸ N →* G' ⧸ N':=
   QuotientGroup.map N N' φ h
 
+-- Even if M = N, G / M and G / N are different types
+-- Universal property constructs an isomorphism between G / M and G / N
 example {G : Type*} [Group G] {M N : Subgroup G} [M.Normal]
     [N.Normal] (h : M = N) : G ⧸ M ≃* G ⧸ N := QuotientGroup.quotientMulEquivOfEq h
 
@@ -412,14 +453,24 @@ open MonoidHom
 #check Subgroup.index_mul_card
 #check Nat.eq_of_mul_eq_mul_right
 
+-- If
+--   Finite G
+--   |G| = |H||K|
+-- then
+--   |G / H| = |K|
 lemma aux_card_eq [Finite G] (h' : Nat.card G = Nat.card H * Nat.card K) :
     Nat.card (G ⧸ H) = Nat.card K := by
-  have : 0 < Nat.card {x // x ∈ H} := Nat.card_pos
+  have : 0 < Nat.card H := Nat.card_pos
   apply Nat.eq_of_mul_eq_mul_left this
   convert h'
   rw [← Subgroup.index_eq_card, mul_comm, Subgroup.index_mul_card]
 
-variable [H.Normal] [K.Normal] [Fintype G] (h : Disjoint H K)
+-- Setup
+--   G: finite group
+--   H, K: normal subgroup of G
+--   h: H, K are disjoint (H ⊓ K = ⊥)
+--   h': |G| = |H| * |K|
+variable [H.Normal] [K.Normal] [Finite G] (h : Disjoint H K)
   (h' : Nat.card G = Nat.card H * Nat.card K)
 
 #check Nat.bijective_iff_injective_and_card
@@ -427,32 +478,66 @@ variable [H.Normal] [K.Normal] [Fintype G] (h : Disjoint H K)
 #check restrict
 #check ker_restrict
 
+-- K is isomorphic to G / H
+-- Key idea:
+--   1) H is normal subgroup of G => φ: G →* G / H
+--   2) Restrict φ to φ|K : K →* G / H
+--   3) prove that φ|K is bijective
+--     3a) φ|K is injective <= Ker φ|K = ⊥ = H ⊓ K = (Ker φ) ⊓ K
+--     3b) |K| = |G / H| <= |G| = |H| * |K|
 def iso₁ : K ≃* G ⧸ H := by
-  apply MulEquiv.ofBijective ((QuotientGroup.mk' H).restrict K)
+  -- H is a normal subgroup of G => φ: G →* G / H
+  let φ := QuotientGroup.mk' H
+  -- Prove that φ|K is bijective
+  apply MulEquiv.ofBijective (φ.restrict K)
+  -- Prove φ|K is injective and |K| = |G / H|
   rw [Nat.bijective_iff_injective_and_card]
   constructor
-  · rw [← ker_eq_bot_iff]
-    rw [(QuotientGroup.mk' H).ker_restrict K]
+  -- Prove φ|K is injective
+  · -- Ker φ|K = ⊥ => Injective φ|K
+    rw [← ker_eq_bot_iff]
+    rw [φ.ker_restrict K]
+    -- Prove Disjoint (Ker φ) K
     apply subgroupOf_eq_bot.mpr
+    -- H is a normal subgroup of G => Ker φ = H
     rw [QuotientGroup.ker_mk']
+    -- Prove H ⊓ K = ⊥
     exact h
-  · rw [aux_card_eq h']
+  -- Prove |K| = |G / H|
+  · -- Use aux_card_eq with h': |G| = |H| * |K|
+    rw [aux_card_eq h']
 
+-- G is isomorphic to (G / K) × (G / H)
+-- Key idea:
+--   1a) K is normal subgroup => φK : G → G / K
+--   1b) H is normal subgroup => φH : G → G / H
+--   2) φ := prod φK φH
+--   3) Prove φ is bijective
+--     3a) φ is injective <= ⊥ = Ker φ = Ker φK ⊓ Ker φH = K ⊓ H
+--     3b) |G| = |(G / K) × (G / H)|
+--             = |G / K| * |G / H|
+--             = |G / K| * |K| (Lagrange's)
 def iso₂ : G ≃* (G ⧸ K) × (G ⧸ H) := by
-  apply MulEquiv.ofBijective ((QuotientGroup.mk' K).prod (QuotientGroup.mk' H))
+  let φK := QuotientGroup.mk' K
+  let φH := QuotientGroup.mk' H
+  let φ := MonoidHom.prod φK φH
+  apply MulEquiv.ofBijective φ
   rw [Nat.bijective_iff_injective_and_card]
   constructor
   · rw [← ker_eq_bot_iff]
     rw [ker_prod]
     repeat rw [QuotientGroup.ker_mk']
     exact h.symm.eq_bot
-  · rw [Nat.card_prod]
-    rw [aux_card_eq h']
-    rw [← Subgroup.index_eq_card]
-    rw [Subgroup.index_mul_card]
+  · calc
+      Nat.card G = K.index * Nat.card K := Eq.symm (index_mul_card K)
+      _ = Nat.card (G ⧸ K) * Nat.card K := rfl
+      _ = Nat.card (G ⧸ K) * Nat.card (G ⧸ H) := by rw [aux_card_eq h']
+      _ = Nat.card ((G ⧸ K) × (G ⧸ H)) := Eq.symm (Nat.card_prod (G ⧸ K) (G ⧸ H))
 
 #check MulEquiv.prodCongr
 
+-- G is isomorphic to H × K
+-- Key idea: transitivity of isomorphism
 def finalIso : G ≃* H × K := by
   have hK : K ≃* (G ⧸ H) := iso₁ h h'
   have hH : H ≃* (G ⧸ K) := by
