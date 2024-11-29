@@ -300,23 +300,25 @@ lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}
       exact hjic.symm
     -- Then Iᵢ is coprime with ⨅ j ∈ {i}ᶜ, Iⱼ.
     -- Then ∃ u ∈ Iᵢ, ∃ v ∈ (⨅ j ∈ {i}ᶜ, Iⱼ), u + v = 1.
-    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, huIi, e, hjneieIj, hej1⟩
-    -- Then ∃ u ∈ Iᵢ, ∃ v s.t j ≠ i → v ∈ Iⱼ, u + v = 1.
-    replace hjneieIj : ∀ j, j ≠ i → e ∈ I j := by simpa using hjneieIj
+    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, huIi, v, hjneieIj, hvj1⟩
+    -- Then v ∈ Iⱼ, ∀ j ≠ i
+    replace hjneieIj : ∀ j, j ≠ i → e ∈ I j := by
+      intro j hjnei
+
     -- Set e = v.
-    use e
+    use v
     -- Goal: 1) φᵢ(e) = 1, 2) for all j ≠ i, φⱼ(e) = 0
     constructor
     · -- Goal: φᵢ(e) = 1
       -- φᵢ(u) = 0 since u ∈ Iᵢ
       -- φᵢ(e) = φᵢ(1 - u) = φᵢ(1) - φᵢ(u) = 1 - 0 = 1
-      rw [← eq_sub_iff_add_eq'] at hej1
-      rw [hej1, map_sub, map_one, sub_eq_self]
+      rw [← eq_sub_iff_add_eq'] at hvj1
+      rw [hvj1, map_sub, map_one, sub_eq_self]
       exact eq_zero_iff_mem.mpr huIi
     · -- Goal: for all j ≠ i, φⱼ(e) = 0
       -- Fix j ≠ i.
       intro j hjnei
-      -- Since j ≠ i, e = v ∈ Iⱼ. Thus, φⱼ(e) = 0.
+      -- Since j ≠ i, v ∈ Iⱼ. Thus, φⱼ(e) = 0.
       exact eq_zero_iff_mem.mpr (hjneieIj j hjnei)
   choose e he using key
   -- Let φ' : R →+* R ⧸ ⨅ᵢ Iᵢ (canonical quotient map)
@@ -357,6 +359,33 @@ noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)
 
 end
 
+-- Algebra is similar to Module but for Ring.
+-- Algebra (resp. Module) is a semiring (resp. Abelian group)
+-- equipped with scalar multiplication
+-- with scalar coming from a comm semiring (resp. ring).
+-- Module:
+--   Elements: Abelian group (e.g. vector ℝⁿ)
+--   Scalar: ring (e.g. matrix Mₙ(ℝ))
+-- Algebra:
+--   Elements: semiring (e.g. complex ℂ, polynomial ℝ[x], matrix Mₙ(ℝ))
+--   Scalar: comm semiring (e.g. real ℝ)
+-- Wording: A is an algebra over B.
+-- Key difference: internal multiplication
+--   Ex: in module, vectors cannot multiply each other
+-- Note: algebra requires only semiring (no inversion) while module requires group
+--   Ex: ℕ can form an ℕ-algebra but cannot form any module
+-- Note: same A and R can have different algebras based on the structure map
+
+-- Scalar multiplication
+-- Algebra A over commutative ring R
+-- Scaling a ∈ A by r ∈ R is φ(r) * a where φ : R →+* A.
+-- φ(r) * a = a * φ(r) (note that this is not generally true if not CommRing)
+-- Ex: R = ℝ, A = M₂(ℝ), φ(r) = [[r, 0], [0, r]]
+
+-- Algebra homomorphism between R-algebras A and B: A →ₐ[R] B
+--   ring homomorphism: preserve addition, multiplication, identity
+--   commute with scalar multiplication: f(r ⬝ a) = r ⬝ f(a)
+
 example {R A : Type*} [CommRing R] [Ring A] [Algebra R A] (r r' : R) (a : A) :
     (r + r') • a = r • a + r' • a :=
   add_smul r r' a
@@ -370,24 +399,43 @@ open Polynomial
 
 example {R : Type*} [CommRing R] : R[X] := X
 
+-- C (constant): algebra structure map from R to R[X]
+-- C(r : R) = r : R[X] (constant polynomial)
 example {R : Type*} [CommRing R] (r : R) := X - C r
 
+-- C is a ring homomorphism => C preserves power
 example {R : Type*} [CommRing R] (r : R) : (X + C r) * (X - C r) = X ^ 2 - C (r ^ 2) := by
   rw [C.map_pow]
   ring
 
 example {R : Type*} [CommRing R] (r:R) : (C r).coeff 0 = r := by simp
 
+-- type inference can guess X, no need type hint (_ : R[X])
 example {R : Type*} [CommRing R] : (X ^ 2 + 2 * X + C 3 : R[X]).coeff 1 = 2 := by simp
 
+-- degree (C 0) = ⊥ = -∞
+-- degree : R[X] → WithBot ℕ = ℕ ∪ {-∞}
+example : degree (C 0) = ⊥ := by simp
+-- degree p * q = degree p + degree q holds always
 example {R : Type*} [Semiring R] [NoZeroDivisors R] {p q : R[X]} :
     degree (p * q) = degree p + degree q :=
   Polynomial.degree_mul
 
+-- natDegree (C 0) = 0
+example : natDegree (C 0) = 0 := by simp
+-- natDegree p * q = natDegree p + natDegree q IF p * q ≠ 0
+-- (e.g. (0 * x).natDegree = 0 ≠ x.natDegree = 0.natDegree + x.natDegree for x ≠ 0)
 example {R : Type*} [Semiring R] [NoZeroDivisors R] {p q : R[X]} (hp : p ≠ 0) (hq : q ≠ 0) :
     natDegree (p * q) = natDegree p + natDegree q :=
   Polynomial.natDegree_mul hp hq
 
+-- but...
+-- ℕ is nicer to work with than ℕ ∪ {-∞}
+-- (p ∘ q).natDegree = p.natDegree * q.natDegree even when p * q = 0
+-- Ex: if q = 0 then
+--     degree (p ∘ q) = 0 ≠ (degree p) * ⊥ if p ≠ 0 => problem
+--     degree (p ∘ q) = 0 = 0 * ⊥ (by convention) if p = 0
+--     meanwhile, ⊥ becomes 0 and everything works for natDegree
 example {R : Type*} [Semiring R] [NoZeroDivisors R] {p q : R[X]} :
     natDegree (comp p q) = natDegree p * natDegree q :=
   Polynomial.natDegree_comp
@@ -396,19 +444,42 @@ example {R : Type*} [CommRing R] (P: R[X]) (x : R) := P.eval x
 
 example {R : Type*} [CommRing R] (r : R) : (X - C r).eval r = 0 := by simp
 
+-- r is a root of the polynomial P if P(x) = 0
 example {R : Type*} [CommRing R] (P : R[X]) (r : R) : IsRoot P r ↔ P.eval r = 0 := Iff.rfl
 
+-- Polynomial.roots P returns a multiset of roots of P
+-- If P = 0: empty multiset
+-- If P ≠ 0: multiset with roots and their multiplicity
+
+-- If R is a domain then number of roots ≤ degree
+-- else number of roots can be greater
+-- Ex: ℤ₆ is not a domain because 2 * 3 = 0 (mod 6) (zero has divisors)
+--     x(x - 1) has 4 roots 0, 1, 3, and 4 but degree 2
+-- Thus, Polynomial.roots requires R being a domain.
+
+-- The multiset of roots of P(x) = x - r is {r}
 example {R : Type*} [CommRing R] [IsDomain R] (r : R) : (X - C r).roots = {r} :=
   roots_X_sub_C r
 
+-- The multiset of roots of P(x) = (x - r)ⁿ is {r, ..., r} (n r's)
 example {R : Type*} [CommRing R] [IsDomain R] (r : R) (n : ℕ):
     ((X - C r) ^ n).roots = n • {r} :=
   by simp
 
+-- Given an R-algebra A. Fix a ∈ A.
+-- There is exactly one R-algebra morphism evalₐ: R[X] →ₐ[R] A that evalₐ(x) = a
+-- because φₐ is completely determined by evalₐ(x):
+--   evalₐ(c₀ + c₁ x + c₂ x² + ...) = φ(c₀) + φ(c₁) evalₐ(x) + φ(c₂) evalₐ(x)² + ...
+--                                  = φ(c₀) + φ(c₁) a + φ(c₂) a² + ...
+--   where φ is the structure map of A
+-- evalₐ is called the "R-algebra morphism of evaluation at a"
+-- and is of type `aeval R A a` in Lean.
+-- Moreover, evalₐ(p) = `aeval a p` in Lean.
 example : aeval Complex.I (X ^ 2 + 1 : ℝ[X]) = 0 := by simp
 
 open Complex Polynomial
 
+-- Roots of x^2 + 1 in ℂ is i and -i
 example : aroots (X ^ 2 + 1 : ℝ[X]) ℂ = {Complex.I, -I} := by
   suffices roots (X ^ 2 + 1 : ℂ[X]) = {I, -I} by simpa [aroots_def]
   have factored : (X ^ 2 + 1 : ℂ[X]) = (X - C I) * (X - C (-I)) := by
@@ -422,17 +493,29 @@ example : aroots (X ^ 2 + 1 : ℝ[X]) ℂ = {Complex.I, -I} := by
   simp only [factored, roots_mul p_ne_zero, roots_X_sub_C]
   rfl
 
--- Mathlib knows about D'Alembert-Gauss theorem: ``ℂ`` is algebraically closed.
+-- D'Alembert-Gauss theorem: ``ℂ`` is algebraically closed.
+-- (all polynomials with complex coeffs have at least one complex root)
 example : IsAlgClosed ℂ := inferInstance
 
 #check (Complex.ofRealHom : ℝ →+* ℂ)
 
+-- Setup:
+--   Ring homomorphism f : R →+* S
+--   Element s ∈ S at which to evaluate
+--   Polynomial p ∈ R[x] (i.e. coefficients ∈ R)
+-- eval₂ f s p evaluates p at s using f to map coeffs from R to S
+-- can also write p.eval₂ f s
+
+-- Does not require S to be an R-algebra
+-- When S is an R-algebra with structure map S:
+--   p.eval₂ f s = aeval s p
 example : (X ^ 2 + 1 : ℝ[X]).eval₂ Complex.ofRealHom Complex.I = 0 := by simp
 
 open MvPolynomial
 
 def circleEquation : MvPolynomial (Fin 2) ℝ := X 0 ^ 2 + X 1 ^ 2 - 1
 
+-- `![...]` denotes Fin n → X, `![0, 1]` means (0, 1)
 example : MvPolynomial.eval ![0, 1] circleEquation = 0 := by simp [circleEquation]
 
 end Polynomials
