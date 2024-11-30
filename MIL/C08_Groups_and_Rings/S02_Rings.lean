@@ -302,9 +302,7 @@ lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}
     -- Then ∃ u ∈ Iᵢ, ∃ v ∈ (⨅ j ∈ {i}ᶜ, Iⱼ), u + v = 1.
     rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨u, huIi, v, hjneieIj, hvj1⟩
     -- Then v ∈ Iⱼ, ∀ j ≠ i
-    replace hjneieIj : ∀ j, j ≠ i → e ∈ I j := by
-      intro j hjnei
-
+    replace hjneieIj : ∀ j, j ≠ i → v ∈ I j := by simpa using hjneieIj
     -- Set e = v.
     use v
     -- Goal: 1) φᵢ(e) = 1, 2) for all j ≠ i, φⱼ(e) = 0
