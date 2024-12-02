@@ -358,20 +358,18 @@ noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)
 end
 
 -- Algebra is similar to Module but for Ring.
--- Algebra (resp. Module) is a semiring (resp. Abelian group)
+-- Algebra (resp. Module) is a semiring (resp. Abelian monoid)
 -- equipped with scalar multiplication
--- with scalar coming from a comm semiring (resp. ring).
+-- with scalar coming from a comm semiring (resp. semiring).
 -- Module:
---   Elements: Abelian group (e.g. vector ℝⁿ)
---   Scalar: ring (e.g. matrix Mₙ(ℝ))
+--   Elements: Abelian monoid (e.g. vector ℝⁿ)
+--   Scalar: semiring (e.g. matrix Mₙ(ℝ))
 -- Algebra:
 --   Elements: semiring (e.g. complex ℂ, polynomial ℝ[x], matrix Mₙ(ℝ))
 --   Scalar: comm semiring (e.g. real ℝ)
 -- Wording: A is an algebra over B.
 -- Key difference: internal multiplication
 --   Ex: in module, vectors cannot multiply each other
--- Note: algebra requires only semiring (no inversion) while module requires group
---   Ex: ℕ can form an ℕ-algebra but cannot form any module
 -- Note: same A and R can have different algebras based on the structure map
 
 -- Scalar multiplication
