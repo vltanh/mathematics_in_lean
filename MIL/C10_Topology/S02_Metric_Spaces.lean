@@ -5,97 +5,340 @@ import Mathlib.Analysis.Normed.Operator.BanachSteinhaus
 open Set Filter
 open Topology Filter
 
+-- 10.2. Metric spaces
+
+-- Let X be a metric space.
+-- Let a, b, c be points in X.
 variable {X : Type*} [MetricSpace X] (a b c : X)
 
+-- A metric space is a set of points equipped with a metric.
+-- The metric is way to measure the distance between two points.
+
+-- `dist` is a function X² → ℝ.
+-- Input: two points a and b in X
+-- Output: the distance in ℝ between a and b
 #check (dist a b : ℝ)
+
+-- A metric is a distance function satisfies the following properties:
+-- 1. Non-negativity: the distance between two points is always non-negative.
+--      dist(a, b) ≥ 0, ∀ a, b ∈ X
 #check (dist_nonneg : 0 ≤ dist a b)
+-- 2. The distance between two points is zero iff the points are the same.
+--     dist(a, b) = 0 ↔ a = b, ∀ a, b ∈ X
 #check (dist_eq_zero : dist a b = 0 ↔ a = b)
+-- 3. Symmetry: the distance between two points is the same in both directions.
+--     dist(a, b) = dist(b, a), ∀ a, b ∈ X
 #check (dist_comm a b : dist a b = dist b a)
+-- 4. The triangle inequality: the distance between two points is always ≤ to the sum of
+--                             the distances between the points and a third point.
+--     dist(a, c) ≤ dist(a, b) + dist(b, c), ∀ a, b, c ∈ X
 #check (dist_triangle a b c : dist a c ≤ dist a b + dist b c)
 
--- Note the next three lines are not quoted, their purpose is to make sure those things don't get renamed while we're looking elsewhere.
+-- Example:
+-- 1. Real numbers ℝ is a metric space with
+--      dist(a, b) = |a - b| where |.| is the absolute value function.
+-- 2. Euclidean space ℝⁿ is a metric space with
+--      dist(a, b) = √(∑ᵢ (aᵢ - bᵢ)²) where a, b ∈ ℝⁿ
+
+-- `EMetricSpace`: extended metric space
+--   allows the distance to be infinite
 #check EMetricSpace
+-- `PseudoMetricSpace`: pseudo metric space
+--   allows the distance between two distinct points to be zero
 #check PseudoMetricSpace
+-- `PseudoEMetricSpace`: pseudo extended metric space
+--   (combining `EMetricSpace` and `PseudoMetricSpace`)
+--   allows the distance between two points to be infinite
+--   and the distance between two distinct points to be zero
 #check PseudoEMetricSpace
 
+-- 10.2.1. convergence and continuity in metric spaces
+
+-- Metric spaces allow defining
+--   convergence of sequences
+--   continuity of functions between metric spaces
+-- using the distance function.
+
+-- Classic epsilon-N definition of convergence:
+-- A sequence {uₙ} in a metric space converges to a point a iff
+-- for every ε > 0, there exists an N such that
+-- for all n ≥ N, dist(uₙ, a) < ε.
 example {u : ℕ → X} {a : X} :
     Tendsto u atTop (𝓝 a) ↔ ∀ ε > 0, ∃ N, ∀ n ≥ N, dist (u n) a < ε :=
   Metric.tendsto_atTop
 
+-- Classic epsilon-delta definition of continuity:
+-- A function f between two metric spaces is continuous iff
+-- for all x in X, for all ε > 0, there exists a δ > 0 such that
+-- for all x' in X, if dist(x', x) < δ, then dist(f(x'), f(x)) < ε.
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} :
     Continuous f ↔
       ∀ x : X, ∀ ε > 0, ∃ δ > 0, ∀ x', dist x' x < δ → dist (f x') (f x) < ε :=
   Metric.continuous_iff
 
+-- The function that measures the distance between two points is continuous.
+-- If X and Y are metric spaces, the Cartesian product X × Y is a metric space.
+-- So, X² is a metric space.
+-- ℝ is a metric space.
+-- The distance function goes between two metric spaces, so we can talk about continuity.
+-- The distance function is continuous.
+example {X : Type*} [MetricSpace X] : Continuous fun p : X × X ↦ dist p.1 p.2 :=
+  by continuity
+
+-- Moreover, the function that measures the distance between
+-- the images of points under a continuous function is also continuous.
+-- i.e., if f is a continuous function from X to Y
+-- then the function p ↦ dist (f p.1) (f p.2) is also continuous.
+
+-- Proof with the `continuity` tactic
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
     Continuous fun p : X × X ↦ dist (f p.1) (f p.2) := by continuity
 
+-- Proof with a proof term
+-- `continuous_fst` and `continuous_snd`: projections are continuous
+example {X : Type*} [MetricSpace X] : Continuous (Prod.fst : X × X → X) := continuous_fst
+example {X : Type*} [MetricSpace X] : Continuous (Prod.snd : X × X → X) := continuous_snd
+-- `Continuous.comp`: composition of continuous functions is continuous
+example {X Y Z : Type*} [MetricSpace X] [MetricSpace Y] [MetricSpace Z]
+        {f : X → Y} {g : Y → Z} (hf : Continuous f) (hg : Continuous g) :
+    Continuous (g ∘ f) := hg.comp hf
+-- `Continuous.prod_mk`: pairing of continuous functions is continuous
+--   If f, g are continuous then (f × g)(x) := (f(x), g(x)) is continuous.
+example {X Y Z : Type*} [MetricSpace X] [MetricSpace Y] [MetricSpace Z]
+        {f : X → Y} {g : X → Z} (hf : Continuous f) (hg : Continuous g) :
+    Continuous (fun x : X ↦ (f x, g x)) := Continuous.prod_mk hf hg
+-- `λ p ↦ dist (f p.1) (f p.2)` = dist ∘ ((f ∘ `Prod.fst`) × (f ∘ `Prod.snd`))
+-- `apply Continuous.comp` will not recognize the definitionally equality
+-- However, a full proof term works
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
     Continuous fun p : X × X ↦ dist (f p.1) (f p.2) :=
   continuous_dist.comp ((hf.comp continuous_fst).prod_mk (hf.comp continuous_snd))
 
+-- Proof with `Continuous.dist`:
+--   If f, g are continuous functions, then x ↦ dist(f(x), g(x)) is continuous.
+--   `Continuous f → Continuous g → Continuous (fun x ↦ dist (f x) (g x))`
+-- Tactic mode:
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
     Continuous fun p : X × X ↦ dist (f p.1) (f p.2) := by
   apply Continuous.dist
   exact hf.comp continuous_fst
   exact hf.comp continuous_snd
-
+-- Term mode:
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
     Continuous fun p : X × X ↦ dist (f p.1) (f p.2) :=
   (hf.comp continuous_fst).dist (hf.comp continuous_snd)
 
+-- Proof with `Continuous.prodMap`:
+-- `Continuous.prodMap`: If f, g are continuous functions,
+--                       then (f × g)(p₁, p₂) := (f(p₁), g(p₂)) is continuous.
+example {X Y Z : Type*} [MetricSpace X] [MetricSpace Y] [MetricSpace Z]
+        {f : X → Y} {g : X → Z} (hf : Continuous f) (hg : Continuous g) :
+    Continuous fun p : X × X ↦ (f p.1, g p.2) := hf.prodMap hg
+-- `λ p ↦ dist (f p.1) (f p.2)` = dist ∘ (f × f)
+example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
+    Continuous fun p : X × X ↦ dist (f p.1) (f p.2) := continuous_dist.comp (hf.prodMap hf)
+
+-- Proof with `Continuous.fst'` and `Continuous.snd'`:
+-- `Continuous.fst'`: image of projection to the first coordinate is continuous
+--   If f is continuous, then (f ∘ `Prod.fst`) is continuous.
+-- Similarly, `Continuous.snd'`: If f is continuous, then (f ∘ `Prod.snd`) is continuous.
+-- Problem: obfuscates the proof
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} (hf : Continuous f) :
     Continuous fun p : X × X ↦ dist (f p.1) (f p.2) :=
   hf.fst'.dist hf.snd'
 
+-- If f is continuous, then f(x² + x) is continuous.
+-- `continuous_pow`: x ↦ xⁿ, denoted ⬝ⁿ,  is continuous for all n ∈ ℕ
+#check continuous_pow
+-- `continuous_id`: x ↦ x, denoted id, is continuous
+#check continuous_id
+-- `λ x ↦ f (x ^ 2 + x)` = f ∘ (⬝² + id)
 example {f : ℝ → X} (hf : Continuous f) : Continuous fun x : ℝ ↦ f (x ^ 2 + x) :=
-  Continuous.comp hf (Continuous.add (continuous_pow 2) continuous_id)
+  hf.comp ((continuous_pow 2).add continuous_id)
 
+-- A function f is continuous at a point a iff for every ε > 0,
+-- there exists a δ > 0 s.t. for all x, if dist(x, a) < δ, then dist(f(x), f(a)) < ε.
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] (f : X → Y) (a : X) :
     ContinuousAt f a ↔ ∀ ε > 0, ∃ δ > 0, ∀ {x}, dist x a < δ → dist (f x) (f a) < ε :=
   Metric.continuousAt_iff
 
+-- A function is continuous iff it is continuous at every point.
+example {X Y : Type*} [MetricSpace X] [MetricSpace Y] (f : X → Y) :
+    Continuous f ↔ ∀ a, ContinuousAt f a := continuous_iff_continuousAt
+
+-- 10.2.2. Balls, open sets and closed sets
+
+-- Let r be a real number.
 variable (r : ℝ)
 
+-- `Metric.ball a r`: the open ball centered at a with radius r
+--   set of all points whose distance from a is strictly less than r
+-- Example: an open ball in ℝ is an open interval (a - r, a + r)
+-- Example: an open ball in ℝ² is a disk without its boundary circle
 example : Metric.ball a r = { b | dist b a < r } :=
   rfl
 
+-- `Metric.closedBall a r`: the closed ball centered at a with radius r
+--   set of all points whose distance from a is less than or equal to r
+-- Example: a closed ball in ℝ is a closed interval [a - r, a + r]
+-- Example: a closed ball in ℝ² is a disk with its boundary circle
 example : Metric.closedBall a r = { b | dist b a ≤ r } :=
   rfl
 
+-- There is no sign restriction on the radius r.
+-- If r is negative, any open or closed ball is empty.
+-- If r is zero, any open ball is empty, and the closed ball is a singleton.
+
+-- If r is positive, the center a is in the open ball.
 example (hr : 0 < r) : a ∈ Metric.ball a r :=
   Metric.mem_ball_self hr
 
+-- If r is non-negative, the center a is in the closed ball.
 example (hr : 0 ≤ r) : a ∈ Metric.closedBall a r :=
   Metric.mem_closedBall_self hr
 
+-- A set is open iff for every point in the set,
+-- there exists an open ball centered at the point
+-- that is entirely contained in the set.
+-- Intuition: an open set doesn't include its boundary.
+-- Intuition: every point has a wiggle room to move around without leaving the set.
+-- Formally, a set s is open iff ∀ x ∈ s, ∃ ε > 0, B(x, ε) ⊆ s.
 example (s : Set X) : IsOpen s ↔ ∀ x ∈ s, ∃ ε > 0, Metric.ball x ε ⊆ s :=
   Metric.isOpen_iff
 
+-- Example: an open ball is an open set
+example (a : X) (r : ℝ) : IsOpen (Metric.ball a r) :=
+  -- Simple Lean proof:
+  -- Metric.isOpen_ball
+  -- Long proof:
+  by
+  rw [Metric.isOpen_iff]
+  -- Consider x ∈ B(a, r).
+  -- Show: there exists ε > 0 s.t. B(x, ε) ⊆ B(a, r).
+  intro x hx
+  -- Let ε = r - dist(x, a).
+  use r - dist x a
+  constructor
+  · -- Show ε > 0.
+    -- As x ∈ B(a, r), dist(x, a) < r. Thus, ε = r - dist(x, a) > 0.
+    exact sub_pos.mpr hx
+  · -- Let y ∈ B(x, ε).
+    -- Show y ∈ B(a, r).
+    intro y hy
+    -- As y ∈ B(x, ε), dist(y, x) < ε = r - dist(x, a).
+    -- Show dist(y, a) < r.
+    rw [Metric.mem_ball] at *
+    -- dist(y, a) ≤ dist(y, x) + dist(x, a) (∵ triangle inequality)
+    --            < r - dist(x, a) + dist(x, a) (∵ dist(y, x) < r - dist(x, a))
+    --            = r
+    calc
+      dist y a ≤ dist y x + dist x a := dist_triangle y x a
+      _ < r - dist x a + dist x a := add_lt_add_right hy (dist x a)
+      _ = r := sub_add_cancel r (dist x a)
+
+-- A set is closed iff its complement is open.
+-- Intuition: a closed set includes its boundary.
+-- Intuition: a closed set contains all its limit points.
 example {s : Set X} : IsClosed s ↔ IsOpen (sᶜ) :=
   isOpen_compl_iff.symm
 
-example {s : Set X} (hs : IsClosed s) {u : ℕ → X} (hu : Tendsto u atTop (𝓝 a))
-    (hus : ∀ n, u n ∈ s) : a ∈ s :=
+-- Example: a closed ball is a closed set
+example (a : X) (r : ℝ) : IsClosed (Metric.closedBall a r) := Metric.isClosed_ball
+
+-- A closed set is closed under limits.
+
+-- `mem_of_tendsto`: general version
+--   if a function is *eventually* in a closed set
+--   and converges to a point along a non-trivial filter,
+--   then the limit point is in the closed set.
+
+-- If a sequence is in a closed set and converges to a limit point,
+-- then the limit point is also in the closed set.
+-- Given
+--   a set s
+--   a point a
+--   a sequence (uₙ)
+-- If
+--   s is closed
+--   (uₙ) converges to a
+--   ∀ n ∈ ℕ, uₙ ∈ s
+-- Then
+--   a ∈ s
+example {s : Set X} {a : X} {u : ℕ → X}
+  (hs : IsClosed s) (hu : Tendsto u atTop (𝓝 a)) (hus : ∀ n, u n ∈ s)
+  : a ∈ s :=
+  -- `mem_of_tendsto` only needs eventually uₙ ∈ s, not all uₙ ∈ s
   hs.mem_of_tendsto hu (Eventually.of_forall hus)
 
-example {s : Set X} : a ∈ closure s ↔ ∀ ε > 0, ∃ b ∈ s, a ∈ Metric.ball b ε :=
+-- The closure of a set is the smallest closed set that contains the set.
+-- Intuition: the closure "fills in the gaps" in a set.
+-- Notation: cl(s)
+
+-- Interior point: ∃ ε > 0, B(a, ε) ⊆ s.
+-- Limit point: ∀ ε > 0, B(a, ε) ∩ s ≠ ∅.
+-- Boundary point: ∀ ε > 0, B(a, ε) ∩ s ≠ ∅ ∧ B(a, ε) ∩ sᶜ ≠ ∅.
+
+-- A point a is in the closure of a set s iff
+-- for every ε > 0, there exists a point b in s s.t. a ∈ B(b, ε)
+-- (or, equivalently, ∀ ε > 0, B(a, ε) ∩ s ≠ ∅)
+-- `mem_closure_iff`: a ∈ closure s ↔ ∀ ε > 0, ∃ b ∈ s, dist(a, b) < ε
+-- Intuition: we can always find a point in s arbitrarily close to a.
+-- Intuition: a is a limit point of s, so a is either in s or on the boundary of s.
+example {a : X} {s : Set X} : a ∈ closure s ↔ ∀ ε > 0, ∃ b ∈ s, a ∈ Metric.ball b ε :=
   Metric.mem_closure_iff
 
-example {u : ℕ → X} (hu : Tendsto u atTop (𝓝 a)) {s : Set X} (hs : ∀ n, u n ∈ s) :
+-- A point is in the closure of a set if
+-- there is a sequence in the set that converges to the point.
+-- Given
+--  a point a
+--  a sequence (uₙ)
+--  a set s
+-- If
+--  (uₙ) converges to a
+--  ∀ n ∈ ℕ, uₙ ∈ s
+-- Then
+--  a is in the closure of s
+example {u : ℕ → X} {s : Set X} (hu : Tendsto u atTop (𝓝 a)) (hs : ∀ n, u n ∈ s) :
     a ∈ closure s :=
   by
+  -- By definition of the closure of s,
+  -- show ∀ ε > 0, ∃ b ∈ s, dist(a, b) < ε.
   rw [Metric.mem_closure_iff]
-  rw [Metric.tendsto_atTop] at hu
+  -- Let ε > 0. Show ∃ b ∈ s, dist(a, b) < ε.
   intro ε hεpos
+  -- Since (uₙ) converges to a and ε > 0,
+  -- ∃ N ∈ ℕ, ∀ n ≥ N, dist(uₙ, a) < ε.
+  rw [Metric.tendsto_atTop] at hu
+  -- Fix such N ∈ ℕ. Then ∀ n ≥ N, dist(uₙ, a) < ε.
   rcases (hu ε hεpos) with ⟨N, h⟩
-  use u N, hs N
-  rw [dist_comm]
-  exact h N (le_refl N)
+  -- Let b = u_N.
+  -- Show b ∈ s and dist(a, b) < ε.
+  use u N
+  constructor
+  · -- Show b ∈ s.
+    -- Since uₙ ∈ s ∀ n ∈ ℕ, b = u_N ∈ s.
+    exact hs N
+  · -- Show dist(a, b) < ε.
+    -- Or, equivalently, show dist(u_N, a) < ε.
+    rw [dist_comm]
+    -- Since ∀ n ≥ N, dist(uₙ, a) < ε, dist(u_N, a) < ε.
+    exact h N (le_refl N)
 
+-- Open balls form a basis for the neighborhood filter.
+#check Metric.nhds_basis_ball
+-- All neighborhoods of a point contain an open ball centered at the point.
+-- More formally, a set s is in the neighborhood filter of a point x iff
+-- there is a positive radius ε s.t. the open ball centered at x with radius ε
+-- is entirely contained in s.
+-- i.e., s ∈ 𝓝 x ↔ ∃ ε > 0, B(x, ε) ⊆ s
 example {x : X} {s : Set X} : s ∈ 𝓝 x ↔ ∃ ε > 0, Metric.ball x ε ⊆ s :=
   Metric.nhds_basis_ball.mem_iff
 
+-- Closed balls also form a basis for the neighborhood filter.
+#check Metric.nhds_basis_closedBall
+-- A set s is in the neighborhood filter of a point x iff
+-- there is a positive radius ε s.t. the closed ball centered at x with radius ε
+-- is entirely contained in s.
 example {x : X} {s : Set X} : s ∈ 𝓝 x ↔ ∃ ε > 0, Metric.closedBall x ε ⊆ s :=
   Metric.nhds_basis_closedBall.mem_iff
 
