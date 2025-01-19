@@ -479,112 +479,394 @@ example {X : Type*} [MetricSpace X] [CompactSpace X] : IsCompact (univ : Set X) 
 -- In a compact space, any closed set is compact.
 #check IsClosed.isCompact
 
+-- 10.2.4. Uniformly continuous functions
+
+-- Uniform continuity requires a single δ to work for all points.
+-- Continuity:
+--   ∀ x ∈ X, ∀ ε > 0, ∃ δ > 0, ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+-- Uniform continuity:
+--   ∀ ε > 0, ∃ δ > 0, ∀ x, x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
 example {X : Type*} [MetricSpace X] {Y : Type*} [MetricSpace Y] {f : X → Y} :
     UniformContinuous f ↔
       ∀ ε > 0, ∃ δ > 0, ∀ {a b : X}, dist a b < δ → dist (f a) (f b) < ε :=
   Metric.uniformContinuous_iff
 
+-- Example: f(x) = ax + b (a ≠ 0) is uniformly continuous on ℝ.
+-- Proof:
+-- Fix ε > 0.
+-- Let δ = ε / |a|. Then, δ > 0.
+-- Suppose for all x, x' ∈ ℝ, |x' - x| < δ.
+-- Then, |f(x') - f(x)| = |a(x' - x)| = |a||x' - x| < |a|δ = ε.
+example {a b : ℝ} (ha : a ≠ 0) : UniformContinuous fun x : ℝ ↦ a * x + b :=
+  by
+  rw [Metric.uniformContinuous_iff]
+  intro ε hεpos
+  let δ := ε / abs a
+  have hδpos : δ > 0 := div_pos hεpos (abs_pos.mpr ha)
+  use δ, hδpos
+  intro x x' hx
+  calc
+    dist (a * x + b) (a * x' + b) = ‖a * x + b - (a * x' + b)‖ := rfl
+    _ = ‖a * x - a * x'‖ := by rw [add_tsub_add_eq_tsub_right]
+    _ = ‖a * (x - x')‖ := by rw [mul_sub]
+    _ = abs a * ‖x - x'‖ := IsAbsoluteValue.abv_mul norm a (x - x')
+    _ = abs a * dist x x' := rfl
+    _ < abs a * δ := mul_lt_mul_of_pos_left hx (abs_pos.mpr ha)
+    _ = abs a * (ε / abs a) := rfl
+    _ = ε := mul_div_cancel₀ ε (abs_ne_zero.mpr ha)
+
+-- Example: f(x) = √x is uniformly continuous on [0, ∞).
+-- Proof:
+-- Fix ε > 0.
+-- Let δ = ε². Then, δ > 0.
+-- Suppose ∀ x, x' ∈ [0, ∞), |x' - x| < δ.
+-- First, |√x' - √x| ≤ |√x'| + |√x| = √x' + √x ≤ |√x' + √x|
+-- Then, |√x' - √x|² ≤ |√x' - √x| * |√x' + √x| = |x' - x| < δ = ε².
+-- So, |√x' - √x| < ε.
+example : UniformContinuousOn (fun x : ℝ ↦ √x) (Ici (0 : ℝ)) :=
+  by
+  rw [Metric.uniformContinuousOn_iff]
+  intro ε hεpos
+  let δ := ε ^ 2
+  have hδpos : δ > 0 := pow_pos hεpos 2
+  use δ, hδpos
+  intro x hx x' hx' h
+  have := calc
+    (dist (√x) (√x')) ^ 2 = |√x - √x'| ^ 2 := rfl
+    _ ≤ |√x - √x'| * |√x + √x'| := by
+      rw [sq]
+      apply mul_le_mul_of_nonneg_left
+      · calc
+          |√x - √x'| = |√x - 0 + 0 - √x'| := by rw [add_zero, sub_zero]
+          _ = |(√x - 0) + (0 - √x')| := by rw [add_sub_assoc]
+          _ ≤ |√x - 0| + |0 - √x'| := by exact abs_add_le (√x - 0) (0 - √x')
+          _ = |√x| + |√x'| := by rw [sub_zero, zero_sub, abs_neg]
+          _ = √x + √x' := by rw [abs_of_nonneg (Real.sqrt_nonneg x), abs_of_nonneg (Real.sqrt_nonneg x')]
+          _ ≤ |√x + √x'| := le_abs_self (√x + √x')
+      · exact abs_nonneg (√x - √x')
+    _ = |(√x - √x') * (√x + √x')| := Eq.symm (abs_mul (√x - √x') (√x + √x'))
+    _ = |√x ^ 2 - √x' ^ 2| := by rw [pow_two_sub_pow_two, mul_comm]
+    _ ≤ |x - x'| := by
+      rw [sq, sq]
+      rw [← Real.sqrt_mul hx]
+      rw [← Real.sqrt_mul hx']
+      rw [← sq, ←sq]
+      rw [Real.sqrt_sq_eq_abs, Real.sqrt_sq_eq_abs]
+      rw [abs_eq_self.mpr hx, abs_eq_self.mpr hx']
+    _ < δ := h
+    _ = ε ^ 2 := rfl
+  rw [← abs_eq_self.mpr dist_nonneg, ← abs_eq_self.mpr (le_of_lt hεpos)]
+  exact sq_lt_sq.mp this
+
+-- Example: f(x) = x² is not uniformly continuous on ℝ.
+-- Proof:
+-- Suppose f is uniformly continuous for a proof by contradiction.
+-- Then, for ε = 1, ∃ δ > 0 s.t. ∀ x, x' ∈ ℝ, |x' - x| < δ → |x'² - x²| < 1.
+-- Let x = 2 / δ and x' = 2 / δ + δ / 2.
+-- Then, |x' - x| = δ / 2 < δ. So, |x'² - x²| < 1.
+-- However, |x'² - x²| = 1 + (1 + δ² / 4) ≥ 1.
+-- This is the contradiction.
+example : ¬ UniformContinuous (fun x : ℝ ↦ x ^ 2) :=
+  by
+  by_contra h
+  rw [Metric.uniformContinuous_iff] at h
+  rcases h 1 zero_lt_one with ⟨δ, hδpos, h⟩
+  let x := 2 / δ
+  let x' := 2 / δ + δ / 2
+  have hdx'x := by
+    calc
+      x' - x = 2 / δ + δ / 2 - 2 / δ := rfl
+      _ = δ / 2 := by rw [sub_eq_iff_eq_add']
+  have hxx' : dist x x' < δ := by
+    calc
+      dist x x' = abs (x - x') := rfl
+      _ = abs (δ / 2) := by rw [abs_sub_comm x x', hdx'x]
+      _ = δ / 2 := abs_of_nonneg (le_of_lt (half_pos hδpos))
+      _ < δ := half_lt_self hδpos
+  have hdxx'δ := h hxx'
+  have : dist (x ^ 2) (x' ^ 2) ≥ 1 := by
+    have hax'x := by
+      calc
+        x' + x = 2 / δ + δ / 2 + 2 / δ := rfl
+        _ = 4 / δ + δ / 2 := by ring
+    have hdx'xpos : x' - x > 0 := by rw [hdx'x]; exact half_pos hδpos
+    have hax'xpos : x' + x > 0 := by rw [hax'x]; exact add_pos (div_pos zero_lt_four hδpos) (half_pos hδpos)
+    have had : (x' + x) * (x' - x) = 2 + δ ^ 2 / 4 := by
+      calc
+        (x' + x) * (x' - x) = (4 / δ + δ / 2) * (δ / 2) := by rw [hax'x, hdx'x]
+        _ = ((4 / δ) * (δ / 2) + (δ / 2) * (δ / 2)) := by ring
+        _ = 2 + δ ^ 2 / 4 := by
+          have : (4 / δ) * (δ / 2) = 2 := by
+            calc
+              (4 / δ) * (δ / 2) = 4 * ((1 / 2) * (δ / δ)) := by ring
+              _ = 4 * ((1 / 2) * 1) := by rw [div_self (ne_of_gt hδpos)]
+              _ = 2 := by ring
+          rw [this]
+          have : (δ / 2) * (δ / 2) = δ ^ 2 / 4 := by ring
+          rw [this]
+    calc
+      dist (x ^ 2) (x' ^ 2) = abs (x ^ 2 - x' ^ 2) := rfl
+      _ = abs (x' ^ 2 - x ^ 2) := abs_sub_comm (x ^ 2) (x' ^ 2)
+      _ = abs ((x' + x) * (x' - x)) := by rw [pow_two_sub_pow_two]
+      _ = abs (x' + x) * abs (x' - x) := IsAbsoluteValue.abv_mul norm (x' + x) (x' - x)
+      _ = (x' + x) * (x' - x) := by rw [abs_of_nonneg (le_of_lt hdx'xpos), abs_of_nonneg (le_of_lt hax'xpos)]
+      _ = 2 + δ ^ 2 / 4 := by rw [had]
+      _ = 1 + (1 + δ ^ 2 / 4) := by ring
+      _ ≥ 1 := by
+        have : 1 + δ ^ 2 / 4 ≥ 0 := add_nonneg zero_le_one (div_nonneg (pow_two_nonneg δ) zero_le_four)
+        exact le_add_of_nonneg_right this
+  exact not_le_of_gt hdxx'δ this
+
+-- A continuous function from a compact metric space
+-- to a metric space is uniformly continuous.
+-- Given:
+--   metric spaces X and Y
+--   function f : X → Y
+-- If:
+--   X is compact
+--   f is continuous
+-- Then:
+--   f is uniformly continuous
 example {X : Type*} [MetricSpace X] [CompactSpace X]
       {Y : Type*} [MetricSpace Y] {f : X → Y}
     (hf : Continuous f) : UniformContinuous f :=
   by
+  -- By the definition of uniform continuity,
+  -- show ∀ ε > 0, ∃ δ > 0, ∀ x, x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
   rw [Metric.uniformContinuous_iff]
+  -- Let ε > 0.
+  -- Show ∃ δ > 0, ∀ x, x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
   intro ε hεpos
+  -- Let φ : X × X → ℝ s.t. φ(x, x') = dist(f(x), f(x')).
   let φ : X × X → ℝ := fun p ↦ dist (f p.1) (f p.2)
-  let K := { p : X × X | ε ≤ φ p }
+  -- From before, φ is continuous.
   have hφ : Continuous φ := hf.fst'.dist hf.snd'
+  -- Let K = { (x, x') ∈ X × X | ε ≤ φ(x, x') }.
+  let K := { p : X × X | ε ≤ φ p }
+  -- Since X is compact, X × X is compact.
+  -- Since φ is continuous and ε is a constant function, which is continuous,
+  -- K is closed. Hence, K is compact since X × X is compact.
   have hK : IsCompact K := (isClosed_le continuous_const hφ).isCompact
+  -- K is either empty or non-empty.
   rcases eq_empty_or_nonempty K with (hKemp | hKnemp)
-  · use 1
+  · -- Suppose K is empty.
+    -- Use δ = 1.
+    use 1
+    -- Show δ > 0 and ∀ x, x' ∈ X, dist(x', x) < δ → φ(x', x) < ε.
     constructor
-    · exact zero_lt_one
-    · intro a b _
-      contrapose! hKemp
-      use (a, b)
-      rw [mem_setOf]
-      exact hKemp
-  · rcases hK.exists_isMinOn hKnemp continuous_dist.continuousOn with ⟨x, hxK, hxinf⟩
-    use dist x.1 x.2
+    · -- δ = 1 > 0.
+      exact zero_lt_one
+    · -- Let x, x' ∈ X. Suppose dist(x', x) < δ = 1.
+      -- Show φ(x', x) < ε.
+      intro x x' _
+      -- Suppose φ(x', x) ≥ ε for a proof by contradiction.
+      by_contra! h
+      -- Then, (x, x') ∈ K.
+      have : (x, x') ∈ K := h
+      -- Since K is empty, this is a contradiction.
+      rw [hKemp] at this
+      exact this
+  · -- Suppose K is non-empty.
+    -- Using the Extreme Value Theorem, there exists
+    -- a minimum (x, x') ∈ K of φ.
+    rcases hK.exists_isMinOn hKnemp continuous_dist.continuousOn with ⟨⟨x, x'⟩, hxK, hxinf⟩
+    -- Let δ = dist(x, x').
+    use dist x x'
+    -- Show δ > 0 and ∀ a, b ∈ X, dist(a, b) < δ → φ(a, b) < ε.
     constructor
-    · apply dist_pos.mpr
+    · -- Show δ > 0.
+      -- Since δ = dist(x, x'), show x ≠ x'.
+      apply dist_pos.mpr
+      -- Suppose x = x' for a proof by contradiction.
       intro h
+      -- ε ≤ φ(x, x') (∵ (x, x') ∈ K)
+      --   = dist(f(x), f(x')) = dist(f(x), f(x)) = 0.
       have : ε ≤ 0 := by
         calc
-          ε ≤ φ x := hxK
-          _ = dist (f x.1) (f x.2) := by dsimp [φ]
-          _ = dist (f x.1) (f x.1) := by rw [← h]
-          _ = 0 := by apply dist_eq_zero.mpr; rfl
-      linarith
-    · intro a b h
-      contrapose! h
+          ε ≤ φ (x, x') := hxK
+          _ = dist (f x) (f x') := rfl
+          _ = dist (f x) (f x) := by rw [h]
+          _ = 0 := dist_self (f x)
+      -- Since ε > 0, this is a contradiction.
+      exact not_le_of_gt hεpos this
+    · -- Show ∀ a, b ∈ X, dist(a, b) < δ → φ(a, b) < ε.
+      -- Let a, b ∈ X. Suppose dist(a, b) < δ.
+      -- Show φ(a, b) < ε.
+      intro a b h
+      -- Suppose φ(a, b) ≥ ε for a proof by contradiction.
+      by_contra! h'
+      -- Then, (a, b) ∈ K.
+      have : (a, b) ∈ K := h'
+      -- Since we know that (x, x') is the minimum of φ,
+      -- dist(a, b) ≥ φ(x, x') = δ.
       rw [isMinOn_iff] at hxinf
-      exact hxinf (a, b) h
+      have : dist a b ≥ dist x x' := hxinf (a, b) this
+      -- Since dist(a, b) < δ, this is a contradiction.
+      exact not_le_of_gt h this
 
+-- 10.2.5. Completeness
 
+-- A Cauchy sequence is a sequence where terms get arbitrarily close to each other.
+
+-- A sequence is Cauchy iff for every ε > 0, there exists an N s.t.
+-- for all m, n ≥ N, dist(uₘ, uₙ) < ε.
+--   ∀ ε > 0, ∃ N ∈ ℕ, ∀ m, n ≥ N, dist(uₘ, uₙ) < ε
 example (u : ℕ → X) :
     CauchySeq u ↔ ∀ ε > 0, ∃ N : ℕ, ∀ m ≥ N, ∀ n ≥ N, dist (u m) (u n) < ε :=
   Metric.cauchySeq_iff
 
+-- A sequence is Cauchy iff for every ε > 0, there exists an N s.t.
+-- for all n ≥ N, dist(uₙ, u_N) < ε.
+--   ∀ ε > 0, ∃ N ∈ ℕ, ∀ n ≥ N, dist(uₙ, u_N) < ε
 example (u : ℕ → X) :
     CauchySeq u ↔ ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, dist (u n) (u N) < ε :=
   Metric.cauchySeq_iff'
 
+-- Convergent sequences (with limit in the space) are Cauchy.
+-- Intuition: If a sequence converges to a point in the space,
+--            then the terms get arbitrarily close to the limit,
+--            and hence to each other.
+example [MetricSpace X] {u : ℕ → X} {a : X} (hu : Tendsto u atTop (𝓝 a)) : CauchySeq u :=
+  Tendsto.cauchySeq hu
+
+-- The converse is not true in general.
+-- Example: The sequence (uₙ) where uₙ = 1 / n in ℝ \ {0}
+--          is Cauchy but does not converge in ℝ \ {0}.
+
+-- A space is complete if every Cauchy sequence converges to a point *in the space*.
+-- Intuition: the space has no "holes" or "gaps".
+-- Example: ℝ with the usual metric is complete.
+example : CompleteSpace ℝ := Real.instCompleteSpace
+
+-- In a complete space, every Cauchy sequence converges to a point in the space.
+-- Given:
+--   metric space X
+--   sequence (uₙ)
+-- If:
+--   X is complete
+--   (uₙ) is Cauchy
+-- Then:
+--   there exists a limit x s.t. uₙ converges to x.
 example [CompleteSpace X] (u : ℕ → X) (hu : CauchySeq u) :
-    ∃ x, Tendsto u atTop (𝓝 x) :=
+    ∃ (x : X), Tendsto u atTop (𝓝 x) :=
   cauchySeq_tendsto_of_complete hu
+
+-- Compact metric spaces are complete.
+example [CompactSpace X] : CompleteSpace X := complete_of_compact
 
 open BigOperators
 
 open Finset
 
+-- A sequence (uₙ) s.t. ∀ n ∈ ℕ, dist(uₙ, uₙ₊₁) ≤ (1 / 2)ⁿ is Cauchy.
+-- Proof sketch:
+--   1. Consider arbitrarily small ε > 0.
+--   2. Show that there is an N s.t. 1 / 2 ^ N * 2 < ε.
+--   3. dist(u_N, u_{N+k}) ≤ ∑_{n=N..N+k-1} dist(uₙ, u_{n+1})
+--                         ≤ ∑_{i=0..k-1} (1 / 2) ^ {N + i}
+--                         = 1 / 2 ^ N * ∑_{i=0..k-1} (1 / 2) ^ i
+--                         ≤ 1 / 2 ^ N * 2 < ε
 theorem cauchySeq_of_le_geometric_two' {u : ℕ → X}
     (hu : ∀ n : ℕ, dist (u n) (u (n + 1)) ≤ (1 / 2) ^ n) : CauchySeq u := by
+  -- Using the definition of a Cauchy sequence,
+  -- Show ∀ ε > 0, ∃ N ∈ ℕ, ∀ n ≥ N, dist(uₙ, u_N) < ε.
   rw [Metric.cauchySeq_iff']
+  -- Let ε > 0.
+  -- Show ∃ N ∈ ℕ, ∀ n ≥ N, dist(uₙ, u_N) < ε.
   intro ε ε_pos
+  -- Lemma: ∃ N ∈ ℕ, 1 / 2 ^ N < ε.
+  -- Let N be such that 1 / 2 ^ N < ε.
+  -- log2(1 / ε) < N-1
   obtain ⟨N, hN⟩ : ∃ N : ℕ, 1 / 2 ^ N * 2 < ε := by
+    -- Show ∃ N ∈ ℕ, 1 / 2 ^ N < ε.
+    -- First, we can show that the sequence (1 / 2 ^ n) converges to 0.
     have : Tendsto (fun n : ℕ ↦ (1 / 2 ^ n : ℝ)) atTop (𝓝 0) := by
+      -- Show the sequence (1 / 2 ^ n) converges to 0.
+      -- Equivalently, show ((1 / 2) ^ n) converges to 0.
       simp_rw [← one_div_pow]
-      apply tendsto_pow_atTop_nhds_zero_of_lt_one (by linarith) (by linarith)
+      -- Since 0 ≤ 1 / 2 < 1, (1 / 2) ^ n converges to 0.
+      have h₁ : 1 / (2 : ℝ) ≥ 0 := one_div_nonneg.mpr zero_le_two
+      have h₂ : 1 / (2 : ℝ) < 1 := one_half_lt_one
+      exact tendsto_pow_atTop_nhds_zero_of_lt_one h₁ h₂
+    -- This means ∀ ε > 0, ∃ N ∈ ℕ, ∀ n ≥ N, dist(1 / 2 ^ n, 0) < ε.
     rw [Metric.tendsto_atTop] at this
+    -- Using this with ε / 2 > 0, we can find N s.t.
+    -- ∀ n ≥ N, dist(1 / 2 ^ n, 0) < ε / 2.
     rcases this (ε / 2) (half_pos ε_pos) with ⟨N, hN⟩
-    have := hN N (le_refl N)
+    -- Use N. Show  1 / 2 ^ N * 2 < ε.
     use N
+    -- Since N ≥ N, dist(1 / 2 ^ N, 0) < ε / 2.
+    have := hN N (le_refl N)
+    -- Then, |1 / 2 ^ N| < ε / 2.
     rw [Real.dist_0_eq_abs] at this
-    have h : 0 ≤ 1 / (2 : ℝ) ^ N := by
-      rw [← one_div_pow]
-      apply pow_nonneg
-      simp only [one_div, inv_nonneg, Nat.ofNat_nonneg]
+    -- Since 1 / 2 ^ N > 0, 1 / 2 ^ N < ε / 2.
+    have h : 0 ≤ 1 / (2 : ℝ) ^ N := one_div_nonneg.mpr (pow_nonneg zero_le_two N)
     rw [abs_of_nonneg h] at this
-    linarith only [this]
+    -- Then 1 / 2 ^ N * 2 < (ε / 2) * 2 = ε.
+    calc
+      1 / 2 ^ N * 2 < (ε / 2) * 2 := by apply mul_lt_mul_of_pos_right this two_pos
+      _ = ε := div_mul_cancel_of_invertible ε 2
+  -- Use N.
+  -- Show ∀ n ≥ N, dist(uₙ, u_N) < ε.
   use N
+  -- Let n ≥ N.
+  -- Show dist(uₙ, u_N) < ε.
   intro n hn
+  -- Since n ≥ N, ∃ k ∈ ℕ s.t. n = N + k. Fix such k.
+  -- Show dist(u_{N + k}, u_N) < ε.
   obtain ⟨k, rfl : n = N + k⟩ := le_iff_exists_add.mp hn
+  -- dist(u_{N + k}, u_N) = dist(u_{N + 0}, u_{N + k})
+  --                      ≤ ∑_{i=0..k-1}, dist(u_{N + i}, u_{N + (i + 1)})
+  --                      ≤ ∑_{i=0..k-1}, (1 / 2) ^ (N + i)
+  --                      = 1 / 2 ^ N * ∑_{i=0..k-1}, (1 / 2) ^ i
+  --                      ≤ 1 / 2 ^ N * 2
+  --                      < ε.
   calc
     dist (u (N + k)) (u N) = dist (u (N + 0)) (u (N + k)) := by
+      -- Show dist(u_{N + k}, u_N) = dist(u_{N + 0}, u_{N + k}).
+      -- Since dist is symmetric, dist(u_{N + k}, u_N) = dist(u_N, u_{N + k}).
       rw [dist_comm]
+      -- Since N = N + 0, dist(u_N, u_{N + k}) = dist(u_{N + 0}, u_{N + k}).
       rw [add_zero N]
     _ ≤ ∑ i in range k, dist (u (N + i)) (u (N + (i + 1))) :=
+      -- Show dist(u_{N + 0}, u_{N + k}) ≤ ∑_{i=0..k-1} dist(u_{N + i}, u_{N + (i + 1)}).
+      -- Using the triangle inequality,
+      -- dist(u_{N + 0}, u_{N + k})
+      -- = ‖ u_{N + 0} - u_{N + k} ‖
+      -- = ‖ (u_{N + 0} - u_{N + 1}) + (u_{N + 1} - u_{N + 2}) + ... + (u_{N + (k - 1)} - u_{N + k}) ‖
+      -- = ‖ ∑_{i=0..k-1} (u_{N + i} - u_{N + (i + 1)}) ‖
+      -- ≤ ∑_{i=0..k-1} ‖ u_{N + i} - u_{N + (i + 1)} ‖
+      -- = ∑_{i=0..k-1} dist(u_{N + i}, u_{N + (i + 1)}).
       dist_le_range_sum_dist (fun i => u (N + i)) k
     _ ≤ ∑ i in range k, (1 / 2 : ℝ) ^ (N + i) :=
+      -- Show ∑_{i=0..k-1} dist(u_{N + i}, u_{N + (i + 1)}) ≤ ∑_{i=0..k-1} (1 / 2) ^ (N + i).
+      -- Since ∀ i = 0..k-1, dist(u_{N + i}, u_{N + (i + 1)}) ≤ (1 / 2) ^ (N + i),
+      -- ∑_{i=0..k-1} dist(u_{N + i}, u_{N + (i + 1)}) ≤ ∑_{i=0..k-1} (1 / 2) ^ (N + i).
       sum_le_sum fun i _ => hu (N + i)
     _ = 1 / 2 ^ N * ∑ i in range k, (1 / 2 : ℝ) ^ i := by
+      -- Show ∑_{i=0..k-1} (1 / 2) ^ (N + i) = 1 / 2 ^ N * ∑_{i=0..k-1} (1 / 2) ^ i.
+      -- ∑_{i=0..k-1} (1 / 2) ^ (N + i)
+      -- = ∑_{i=0..k-1} (1 / 2) ^ N * (1 / 2) ^ i
+      -- = (1 / 2) ^ N * ∑_{i=0..k-1} (1 / 2) ^ i.
+      -- = 1 / 2 ^ N * ∑_{i=0..k-1} (1 / 2) ^ i.
       simp_rw [← one_div_pow, pow_add, mul_sum]
     _ ≤ 1 / 2 ^ N * 2 := by
-      apply mul_le_mul
-      · apply le_refl
-      · exact sum_geometric_two_le k
-      · apply sum_nonneg
-        intro _ _
-        apply pow_nonneg
-        simp
-      · rw [← one_div_pow]
-        apply pow_nonneg
-        simp
-    _ < ε := hN
+      -- Show 1 / 2 ^ N * ∑_{i=0..k-1} (1 / 2) ^ i ≤ 1 / 2 ^ N * 2.
+      apply mul_le_mul_of_nonneg_left
+      · -- Show ∑_{i=0..k-1} (1 / 2) ^ i ≤ 2.
+        -- Since k ∈ ℕ, ∑_{i=0..k-1} (1 / 2) ^ i ≤ ∑_{i=0..∞} (1 / 2) ^ i = 2.
+        exact sum_geometric_two_le k
+      · -- Show 0 ≤ 1 / 2 ^ N.
+        -- Since N ∈ ℕ and 2 ≥ 0, 2 ^ N > 0, 1 / 2 ^ N > 0.
+        exact one_div_nonneg.mpr (pow_nonneg zero_le_two N)
+    _ < ε :=
+      -- From above, 1 / 2 ^ N * 2 < ε.
+      hN
 
 
 open Metric
 
+-- The intersection of a family of open and dense sets in a complete space is dense.
 example [CompleteSpace X] (f : ℕ → Set X) (ho : ∀ n, IsOpen (f n)) (hd : ∀ n, Dense (f n)) :
     Dense (⋂ n, f n) := by
   let B : ℕ → ℝ := fun n ↦ (1 / 2) ^ n
