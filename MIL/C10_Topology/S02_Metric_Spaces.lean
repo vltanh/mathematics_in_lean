@@ -355,62 +355,56 @@ example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} {x : X} :
 -- A function f is continuous at a point x iff
 -- for every ε > 0, there exists a δ > 0 s.t.
 -- f(B(x, δ)) ⊆ B(f(x), ε).
+-- This is essentially the epsilon-delta definition of continuity.
 example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} {x : X} :
   ContinuousAt f x ↔ ∀ ε > 0, ∃ δ > 0, f '' Metric.ball x δ ⊆ Metric.ball (f x) ε :=
   by
+  -- By the epsilon-delta definition of continuity,
+  -- f is continuous at x iff ∀ ε > 0, ∃ δ > 0 s.t.
+  -- ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+  rw [Metric.continuousAt_iff]
   constructor
-  · -- Suppose f is continuous at x.
-    -- Consider ε > 0.
-    -- Show ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
-    intro h ε hεpos
-    -- By definition of continuity at x,
-    -- we have f tends to f(x) as input tends to x.
-    -- This means that for all neighborhood V of f(x),
-    -- f⁻¹(V) is a neighborhood of x.
-    rw [ContinuousAt, tendsto_def] at h
-    -- Since B(f(x), ε) is a neighborhood of f(x),
-    -- f⁻¹(B(f(x), ε)) is a neighborhood of x.
-    have := h (Metric.ball (f x) ε) (Metric.ball_mem_nhds (f x) hεpos)
-    -- By definition of a neighborhood of x,
-    -- ∃ δ > 0, B(x, δ) ⊆ f⁻¹(B(f(x), ε)).
-    rw [Metric.mem_nhds_iff] at this
-    -- Fix such δ > 0. Then, B(x, δ) ⊆ f⁻¹(B(f(x), ε)).
-    -- Show f(B(x, δ)) ⊆ B(f(x), ε).
-    rcases this with ⟨δ, hδpos, h⟩
-    use δ, hδpos
-    -- Since image and preimage are a Galois connection,
-    -- f(B(x, δ)) ⊆ B(f(x), ε).
-    exact image_subset_iff.mpr h
-  · -- Suppose ∀ ε > 0, ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
-    -- Show f is continuous at x.
+  · -- Suppose ∀ ε > 0, ∃ δ > 0, ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+    -- Show ∀ ε > 0, ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
     intro h
-    -- Consider a neighborhood V of f(x).
-    -- Show V ∈ f(𝓝(x)).
-    intro V hV
-    -- Since V is a neighborhood of f(x),
-    -- ∃ ε > 0, B(f(x), ε) ⊆ V.
-    rw [Metric.mem_nhds_iff] at hV
-    -- Fix such ε > 0. Then B(f(x), ε) ⊆ V.
-    rcases hV with ⟨ε, hεpos, h'⟩
-    -- Since ε > 0, ∃ δ > 0 s.t. f(B(x, δ)) ⊆ B(f(x), ε).
-    -- Fix such δ > 0. Then f(B(x, δ)) ⊆ B(f(x), ε).
+    -- Let ε > 0.
+    -- Show ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
+    intro ε hεpos
+    -- By the hypothesis, ∃ δ > 0 s.t. ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+    -- Fix such δ > 0. Then, ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
     rcases h ε hεpos with ⟨δ, hδpos, h⟩
-    -- We can show V ∈ f(𝓝(x)) if
-    -- we show f⁻¹(V) is a neighborhood of x.
-    apply mem_map.mpr
-    -- This is equivalent to
-    -- show ∃ δ > 0, B(x, δ) ⊆ f⁻¹(V).
-    rw [Metric.mem_nhds_iff]
-    -- Let δ be the same as before.
-    -- Show B(x, δ) ⊆ f⁻¹(V).
+    -- Use δ > 0.
+    -- Show f(B(x, δ)) ⊆ B(f(x), ε).
     use δ, hδpos
-    -- This is equivalent to
-    -- Show f(B(x, δ)) ⊆ V.
-    apply image_subset_iff.mp
-    -- Since f(B(x, δ)) ⊆ B(f(x), ε) and B(f(x), ε) ⊆ V,
-    -- f(B(x, δ)) ⊆ V.
-    intro _ hy
-    exact h' (h hy)
+    -- Let y ∈ f(B(x, δ)).
+    -- Show y ∈ B(f(x), ε).
+    intro y hy
+    -- Since y ∈ f(B(x, δ)), ∃ x' ∈ B(x, δ) s.t. y = f(x').
+    -- Fix such x'. Then, dist(x', x) < δ and y = f(x').
+    rcases hy with ⟨x', hx', rfl⟩
+    -- Then, dist(y, f(x)) = dist(f(x'), f(x)) < ε.
+    -- Or, equivalently, y ∈ B(f(x), ε).
+    exact h hx'
+  · -- Suppose ∀ ε > 0, ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
+    -- Show ∀ ε > 0, ∃ δ > 0, ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+    intro h
+    -- Let ε > 0.
+    -- Show ∃ δ > 0, ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+    intro ε hεpos
+    -- By the hypothesis, ∃ δ > 0 s.t. f(B(x, δ)) ⊆ B(f(x), ε).
+    -- Fix such δ > 0. Then, f(B(x, δ)) ⊆ B(f(x), ε).
+    rcases h ε hεpos with ⟨δ, hδpos, h⟩
+    -- Use δ > 0.
+    -- Show ∀ x' ∈ X, dist(x', x) < δ → dist(f(x'), f(x)) < ε.
+    use δ, hδpos
+    -- Let x' ∈ X. Suppose dist(x', x) < δ.
+    -- Show dist(f(x'), f(x)) < ε.
+    intro x' hx'
+    -- Since dist(x', x) < δ, x' ∈ B(x, δ). Then, f(x') ∈ f(B(x, δ)).
+    have : f x' ∈ f '' Metric.ball x δ := mem_image_of_mem f hx'
+    -- Then, since f(B(x, δ)) ⊆ B(f(x), ε), f(x') ∈ B(f(x), ε).
+    -- Or, equivalently, dist(f(x'), f(x)) < ε.
+    exact h this
 
 -- 10.2.3. Compactness
 
