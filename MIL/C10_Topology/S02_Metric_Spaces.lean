@@ -342,30 +342,148 @@ example {x : X} {s : Set X} : s ∈ 𝓝 x ↔ ∃ ε > 0, Metric.ball x ε ⊆ 
 example {x : X} {s : Set X} : s ∈ 𝓝 x ↔ ∃ ε > 0, Metric.closedBall x ε ⊆ s :=
   Metric.nhds_basis_closedBall.mem_iff
 
+-- A function f is continuous at a point x iff
+-- for every neighborhood V of f(x), there exists a neighborhood U of x
+-- s.t. f(U) ⊆ V.
+-- `mem_map_iff_exists_image`: U ∈ f(F) ↔ ∃ V ∈ F, f(V) ⊆ U
+example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} {x : X} :
+  ContinuousAt f x ↔ (∀ V ∈ 𝓝 (f x), ∃ U ∈ 𝓝 x, f '' U ⊆ V) := ⟨
+    fun h _ hV => mem_map_iff_exists_image.mp (h hV),
+    fun h' V hV => mem_map_iff_exists_image.mpr (h' V hV),
+  ⟩
+
+-- A function f is continuous at a point x iff
+-- for every ε > 0, there exists a δ > 0 s.t.
+-- f(B(x, δ)) ⊆ B(f(x), ε).
+example {X Y : Type*} [MetricSpace X] [MetricSpace Y] {f : X → Y} {x : X} :
+  ContinuousAt f x ↔ ∀ ε > 0, ∃ δ > 0, f '' Metric.ball x δ ⊆ Metric.ball (f x) ε :=
+  by
+  constructor
+  · -- Suppose f is continuous at x.
+    -- Consider ε > 0.
+    -- Show ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
+    intro h ε hεpos
+    -- By definition of continuity at x,
+    -- we have f tends to f(x) as input tends to x.
+    -- This means that for all neighborhood V of f(x),
+    -- f⁻¹(V) is a neighborhood of x.
+    rw [ContinuousAt, tendsto_def] at h
+    -- Since B(f(x), ε) is a neighborhood of f(x),
+    -- f⁻¹(B(f(x), ε)) is a neighborhood of x.
+    have := h (Metric.ball (f x) ε) (Metric.ball_mem_nhds (f x) hεpos)
+    -- By definition of a neighborhood of x,
+    -- ∃ δ > 0, B(x, δ) ⊆ f⁻¹(B(f(x), ε)).
+    rw [Metric.mem_nhds_iff] at this
+    -- Fix such δ > 0. Then, B(x, δ) ⊆ f⁻¹(B(f(x), ε)).
+    -- Show f(B(x, δ)) ⊆ B(f(x), ε).
+    rcases this with ⟨δ, hδpos, h⟩
+    use δ, hδpos
+    -- Since image and preimage are a Galois connection,
+    -- f(B(x, δ)) ⊆ B(f(x), ε).
+    exact image_subset_iff.mpr h
+  · -- Suppose ∀ ε > 0, ∃ δ > 0, f(B(x, δ)) ⊆ B(f(x), ε).
+    -- Show f is continuous at x.
+    intro h
+    -- Consider a neighborhood V of f(x).
+    -- Show V ∈ f(𝓝(x)).
+    intro V hV
+    -- Since V is a neighborhood of f(x),
+    -- ∃ ε > 0, B(f(x), ε) ⊆ V.
+    rw [Metric.mem_nhds_iff] at hV
+    -- Fix such ε > 0. Then B(f(x), ε) ⊆ V.
+    rcases hV with ⟨ε, hεpos, h'⟩
+    -- Since ε > 0, ∃ δ > 0 s.t. f(B(x, δ)) ⊆ B(f(x), ε).
+    -- Fix such δ > 0. Then f(B(x, δ)) ⊆ B(f(x), ε).
+    rcases h ε hεpos with ⟨δ, hδpos, h⟩
+    -- We can show V ∈ f(𝓝(x)) if
+    -- we show f⁻¹(V) is a neighborhood of x.
+    apply mem_map.mpr
+    -- This is equivalent to
+    -- show ∃ δ > 0, B(x, δ) ⊆ f⁻¹(V).
+    rw [Metric.mem_nhds_iff]
+    -- Let δ be the same as before.
+    -- Show B(x, δ) ⊆ f⁻¹(V).
+    use δ, hδpos
+    -- This is equivalent to
+    -- Show f(B(x, δ)) ⊆ V.
+    apply image_subset_iff.mp
+    -- Since f(B(x, δ)) ⊆ B(f(x), ε) and B(f(x), ε) ⊆ V,
+    -- f(B(x, δ)) ⊆ V.
+    intro _ hy
+    exact h' (h hy)
+
+-- 10.2.3. Compactness
+
+-- Many properties of finite sets
+-- can be extended to infinite sets that are "compact".
+
+-- `IsCompact` is a typeclass for compact sets.
+-- In Lean, compactness is defined using filters:
+-- A set is compact if every non-trivial filter that contains the set
+-- has a cluster point in the set.
+-- A cluster point is a point whose neighborhoods intersects the filter non-trivially.
+example {s : Set X} :
+  IsCompact s = ∀ F [NeBot F], F ≤ 𝓟 s → ∃ x ∈ s, ClusterPt x F := rfl
+
+-- The closed unit interval in ℝ, [0, 1], is a closed set.
 example : IsCompact (Set.Icc 0 1 : Set ℝ) :=
   isCompact_Icc
 
+-- Any sequence taking values in a compact set has
+-- a subsequence that converges to a point in the set.
+-- Intuition: No sequence can escape a compact set to infinity.
+-- Relevant lemma: `IsCompact.tendsto_subseq`
+-- Given
+--   a set s
+--   a sequence (u(n))
+-- If
+--   s is compact
+--   ∀ n ∈ ℕ, u(n) ∈ s
+-- Then:
+--   there exists an a ∈ s
+--   there exists a subsequence indexed by φ : ℕ → ℕ
+--   such that φ is strictly increasing
+--   and the subsequence ((u ∘ φ)(n)) converges to a
 example {s : Set X} (hs : IsCompact s) {u : ℕ → X} (hu : ∀ n, u n ∈ s) :
     ∃ a ∈ s, ∃ φ : ℕ → ℕ, StrictMono φ ∧ Tendsto (u ∘ φ) atTop (𝓝 a) :=
   hs.tendsto_subseq hu
 
+-- Extreme value theorem:
+-- Any continuous function on a non-empty compact set with values in ℝ
+-- is bounded and attains its bounds somewhere.
+-- Relevant lemma: `IsCompact.exists_isMinOn` and `IsCompact.exists_isMaxOn`
+-- Given
+--   a set s
+--   a function f : X → ℝ
+-- If
+--   s is compact and non-empty
+--   f is continuous on s
+-- Then:
+--   there exists a point x ∈ s s.t. ∀ y ∈ s, f(x) ≤ f(y)
 example {s : Set X} (hs : IsCompact s) (hs' : s.Nonempty) {f : X → ℝ}
       (hfs : ContinuousOn f s) :
     ∃ x ∈ s, ∀ y ∈ s, f x ≤ f y :=
   hs.exists_isMinOn hs' hfs
-
+-- Same as above but for the maximum.
 example {s : Set X} (hs : IsCompact s) (hs' : s.Nonempty) {f : X → ℝ}
       (hfs : ContinuousOn f s) :
     ∃ x ∈ s, ∀ y ∈ s, f y ≤ f x :=
   hs.exists_isMaxOn hs' hfs
 
+-- Compact sets are closed.
+-- Relevant lemma: `IsCompact.isClosed`
 example {s : Set X} (hs : IsCompact s) : IsClosed s :=
   hs.isClosed
 
+-- A metric space is compact if the entire space is compact.
+-- In Lean, `CompactSpace` is a typeclass for compact spaces.
+
+-- In a compact space, the universe set is compact.
 example {X : Type*} [MetricSpace X] [CompactSpace X] : IsCompact (univ : Set X) :=
   isCompact_univ
 
-#check IsCompact.isClosed
+-- In a compact space, any closed set is compact.
+#check IsClosed.isCompact
 
 example {X : Type*} [MetricSpace X] {Y : Type*} [MetricSpace Y] {f : X → Y} :
     UniformContinuous f ↔
