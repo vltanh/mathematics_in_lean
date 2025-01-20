@@ -863,111 +863,266 @@ theorem cauchySeq_of_le_geometric_two' {u : ℕ → X}
       -- From above, 1 / 2 ^ N * 2 < ε.
       hN
 
-
 open Metric
 
+-- A set is dense in a space if every point in the space is in the closure of the set.
+-- Intuition: the set is "everywhere" in the space.
+example (s : Set X) : Dense s = ∀ (x : X), x ∈ closure s := rfl
+
+-- Example: ℚ is dense in ℝ.
+-- Proof: there is a rational number between any two real numbers.
+example : Dense (range ((↑) : ℚ → ℝ) : Set ℝ) := by
+  rw [dense_iff_exists_between]
+  intro a b hab
+  rcases exists_rat_btwn hab with ⟨q, hq⟩
+  use q
+  exact ⟨mem_range_self q, hq⟩
+
 -- The intersection of a family of open and dense sets in a complete space is dense.
+-- Given:
+--   metric space X
+--   family of sets (fₙ)
+-- If:
+--   X is complete
+--   ∀ n, fₙ is open
+--   ∀ n, fₙ is dense
+-- Then:
+--   ⋂ fₙ is dense
+-- Proof sketch:
+--   1. For each index n, point x, and radius δ,
+--      we can find a center y and a positive radius r s.t.
+--      the closed ball centered at y with radius r is included in
+--      both fₙ and the closed ball centered at x with radius δ.
+--   2. To show that ⋂ fₙ is dense, we have to show that every point x in ⋂ fₙ
+--      is in the closure of ⋂ fₙ.
+--   3. Since closed balls centered at x form a basis of the neighborhood filter at x,
+--      we have to find, for every positive radius ε, a point y in the closed ball of radius ε around x
+--      belonging to all fₙ.
+--   4. We construct inductively a sequence Fₙ = (cₙ, rₙ) such that
+--      the closed ball cB(cₙ, rₙ) is included in the previous ball and in fₙ
+--   5. The sequence of centers (cₙ) is Cauchy, and hence converges to a point y.
+--   6. This point y is the point we want to find.
+--        y belongs to all fₙ, and hence to ⋂ fₙ.
+--        y belongs to all closed balls centered at x.
 example [CompleteSpace X] (f : ℕ → Set X) (ho : ∀ n, IsOpen (f n)) (hd : ∀ n, Dense (f n)) :
     Dense (⋂ n, f n) := by
+  -- Let B : ℕ → ℝ s.t. B(n) = (1 / 2) ^ n.
   let B : ℕ → ℝ := fun n ↦ (1 / 2) ^ n
-  have Bpos : ∀ n, 0 < B n := fun n => pow_pos (by simp) n
-  /- Translate the density assumption into two functions `center` and `radius` associating
-    to any n, x, δ, δpos a center and a positive radius such that
-    `closedBall center radius` is included both in `f n` and in `closedBall x δ`.
-    We can also require `radius ≤ (1/2)^(n+1)`, to ensure we get a Cauchy sequence later. -/
+  -- Then, since 1 / 2 > 0, ∀ n ∈ ℕ, B(n) > 0.
+  have Bpos : ∀ n, 0 < B n := fun n => pow_pos (one_half_pos) n
+  -- Since fₙ is dense ∀ n ∈ ℕ, we can find for each index n, point x, and δ > 0
+  -- a center y and a positive radius r s.t. the closed ball centered at c with radius r
+  --   is included in both fₙ and the closed ball centered at x with radius δ
+  --   r ≤ B(n + 1) = (1 / 2) ^ (n + 1) (to ensure that the sequence (cₙ) is Cauchy)
+  -- Formally, ∀ n ∈ ℕ, ∀ x ∈ X, ∀ δ > 0,
+  --           ∃ y ∈ X, ∃ r > 0, r ≤ B(n + 1) ∧ cB(y, r) ⊆ cB(x, δ) ∩ fₙ
   have :
-    ∀ (n : ℕ) (x : X),
-      ∀ δ > 0, ∃ y : X, ∃ r > 0, r ≤ B (n + 1) ∧ closedBall y r ⊆ closedBall x δ ∩ f n :=
+    ∀ (n : ℕ) (x : X), ∀ δ > 0,
+    ∃ y : X, ∃ r > 0, r ≤ B (n + 1) ∧ closedBall y r ⊆ closedBall x δ ∩ f n :=
     by
+    -- Let n ∈ ℕ, x ∈ X, and δ > 0.
+    -- Show ∃ y ∈ X, ∃ r > 0, r ≤ B(n + 1) and cB(y, r) ⊆ cB(x, δ) ∩ fₙ.
     intro n x δ hδpos
+    -- Since fₙ is dense, ∀ x ∈ X, ∀ r > 0, ∃ y ∈ fₙ, y ∈ cB(x, r).
     have hdn := hd n
     rw [dense_iff] at hdn
+    -- Use with center x and radius δ / 2 > 0,
+    -- we get a point y ∈ fₙ s.t. y ∈ cB(x, δ / 2).
     rcases hdn x (δ / 2) (half_pos hδpos) with ⟨y, hyb, hyfn⟩
+    -- Since fₙ is open, ∀ y ∈ fₙ, ∃ ε > 0 s.t. B(y, ε) ⊆ fₙ.
     have hon := ho n
     rw [Metric.isOpen_iff] at hon
+    -- Use with y, we get ε > 0 s.t. B(y, ε) ⊆ fₙ.
     rcases hon y hyfn with ⟨ε, hεpos, hbyεfn⟩
-    let ε' := min (min (δ / 2) (B (n + 1))) (ε / 2)
-    have hε'B : ε' ≤ δ / 2 := le_trans (min_le_left _ _) (min_le_left _ _)
-    have hε'ε : ε' < ε := by
-      have : ε' ≤ (ε / 2) := min_le_right _ _
-      apply lt_of_le_of_lt this
-      linarith [hεpos]
-    use y, ε'
+    -- Let r = min(B(n + 1), δ / 2, ε / 2).
+    -- Motivation:
+    --   small enough radius r ≤ B(n + 1) as required
+    --   since y ∈ cB(x, δ / 2), r ≤ δ / 2 to ensure cB(y, r) ⊆ cB(x, δ)
+    --   since B(y, ε) ⊆ fₙ, r < ε to ensure cB(y, r) ⊆ fₙ
+    let r := min (B (n + 1)) (min (δ / 2) (ε / 2))
+    -- Then, r > 0
+    have hrpos : r > 0 :=
+      -- B(n + 1) > 0, δ / 2 > 0, ε / 2 > 0, so r > 0
+      lt_min (Bpos (n + 1)) (lt_min (half_pos hδpos) (half_pos hεpos))
+    -- and r ≤ B(n + 1)
+    have hrB : r ≤ B (n + 1) :=
+      -- r ≤ B(n + 1)
+      min_le_left _ _
+    -- and r ≤ δ / 2
+    have hrδ : r ≤ δ / 2 :=
+      -- r ≤ min(δ / 2, ε / 2) ≤ δ / 2
+      le_trans (min_le_right _ _) (min_le_left _ _)
+    -- and r < ε
+    have hrε : r < ε :=
+      -- r ≤ min(δ / 2, ε / 2) ≤ ε / 2 < ε
+      lt_of_le_of_lt (min_le_right _ _)
+        (lt_of_le_of_lt (min_le_right _ _) (half_lt_self hεpos))
+    use y, r, hrpos, hrB
+    -- Show cB(y, r) ⊆ cB(x, δ) ∩ fₙ.
+    -- Let z ∈ cB(y, r).
+    intro z hz
+    -- Show z ∈ cB(x, δ) and z ∈ fₙ.
     constructor
-    · exact lt_min (lt_min (half_pos hδpos) (Bpos (n + 1))) (half_pos hεpos)
-    · constructor
-      · exact le_trans (min_le_left _ _) (min_le_right _ _)
-      · intro z hz
-        constructor
-        · rw [mem_closedBall] at *
-          rw [mem_ball] at hyb
-          calc
-            dist z x ≤ dist z y + dist y x := dist_triangle z y x
-            _ ≤ δ / 2 + δ / 2 := add_le_add (le_trans hz hε'B) (le_of_lt hyb)
-            _ = δ := by ring
-        · apply hbyεfn
-          rw [mem_closedBall] at hz
-          rw [mem_ball]
-          exact lt_of_le_of_lt hz hε'ε
+    · -- Show z ∈ cB(x, δ).
+      -- Equivalently, show dist(z, x) ≤ δ.
+      rw [mem_closedBall]
+      -- dist(z, x) ≤ dist(z, y) + dist(y, x) (∵ triangle inequality)
+      --            ≤ δ / 2 + δ / 2 (∵ z ∈ cB(y, r) with r ≤ δ / 2 and y ∈ cB(x, δ / 2))
+      --            ≤ δ / 2 + δ / 2 = δ
+      calc
+        dist z x ≤ dist z y + dist y x := dist_triangle z y x
+        _ ≤ δ / 2 + δ / 2 := add_le_add (le_trans hz hrδ) (le_of_lt hyb)
+        _ = δ := add_halves δ
+    · -- Show z ∈ fₙ.
+      -- Since B(y, ε) ⊆ fₙ, it suffices to
+      -- show z ∈ B(y, ε).
+      apply hbyεfn
+      -- Equivalently, show dist(z, y) < ε.
+      rw [mem_ball]
+      -- Since z ∈ cB(y, r) with r < ε,
+      -- dist(z, y) ≤ r < ε.
+      exact lt_of_le_of_lt hz hrε
+  -- Let `center` and `radius` be functions s.t.
+  -- `center`(n, c, δ) = y and `radius`(n, c, δ) = r s.t.
+  --   cB(y, r) ⊆ cB(c, δ) ∩ fₙ
+  --   r ≤ B(n + 1)
   choose! center radius Hpos HB Hball using this
+  -- Let x ∈ X.
+  -- Show x ∈ cl(⋂ fₙ).
   intro x
+  -- Since closed balls form a basis of the neighborhood filter at x, to show x ∈ cl(⋂ fₙ)
+  -- we have to find, for every positive radius ε,
+  -- a point y in the closed ball of radius ε around x
+  -- belonging to all fₙ.
+  -- Show ∀ ε > 0, ∃ y ∈ ⋂ fₙ, y ∈ cB(x, ε).
   rw [mem_closure_iff_nhds_basis nhds_basis_closedBall]
+  -- Let ε > 0.
+  -- Show ∃ y ∈ ⋂ fₙ, y ∈ cB(x, ε).
   intro ε εpos
-  /- `ε` is positive. We have to find a point in the ball of radius `ε` around `x`
-    belonging to all `f n`. For this, we construct inductively a sequence
-    `F n = (c n, r n)` such that the closed ball `closedBall (c n) (r n)` is included
-    in the previous ball and in `f n`, and such that `r n` is small enough to ensure
-    that `c n` is a Cauchy sequence. Then `c n` converges to a limit which belongs
-    to all the `f n`. -/
+  -- We construct inductively a sequence Fₙ = (cₙ, rₙ) such that
+  -- the closed ball cB(cₙ, rₙ)
+  --   is included in the previous ball and in fₙ
+  --     i.e., cB(cₙ, rₙ) ⊆ cB(c_{n-1}, r_{n-1}) ∩ fₙ
+  --   the radius is positive and small enough that cₙ is a Cauchy sequence
+  --     i.e., 0 < rₙ ≤ B(n)
+  -- Specifically,
+  --   F₀ = (c₀, r₀)      Fₙ₊₁ = (cₙ₊₁, rₙ₊₁)
+  -- where
+  --   c₀ = x             cₙ₊₁ = `center`(n, cₙ, rₙ)
+  --   r₀ = B(0)          rₙ₊₁ = `radius`(n, cₙ, rₙ)
+  -- By the definition of `center` and `radius`, the properties are satisfied.
   let F : ℕ → X × ℝ := fun n ↦
-    Nat.recOn n (Prod.mk x (min ε (B 0)))
+    Nat.recOn n
+      (Prod.mk x (min ε (B 0)))
       fun n p ↦ Prod.mk (center n p.1 p.2) (radius n p.1 p.2)
   let c : ℕ → X := fun n ↦ (F n).1
   let r : ℕ → ℝ := fun n ↦ (F n).2
+  -- We show that rₙ > 0 for all n.
   have rpos : ∀ n, 0 < r n := by
+    -- Let n ∈ ℕ.
     intro n
+    -- We prove by induction on n.
+    -- IH: If rₙ > 0, then rₙ₊₁ > 0.
     induction' n with n hn
-    · dsimp [r, F]
+    · -- Show r₀ = min(ε, B(0)) > 0.
+      -- Since ε > 0 and B(0) > 0 (∵ B(n) > 0 for all n),
+      -- r₀ > 0.
       exact lt_min εpos (Bpos 0)
-    · exact Hpos n (c n) (r n) hn
+    · -- Show rₙ₊₁ = `radius`(n, cₙ, rₙ) > 0.
+      -- By the IH, rₙ > 0.
+      -- Then, `radius`(n, cₙ, rₙ) > 0.
+      -- Thus, rₙ₊₁ > 0.
+      exact Hpos n (c n) (r n) hn
+  -- We show that rₙ ≤ B(n) for all n.
   have rB : ∀ n, r n ≤ B n := by
+    -- Let n ∈ ℕ.
     intro n
+    -- We prove by induction on n.
+    -- IH: If rₙ ≤ B(n), then rₙ₊₁ ≤ B(n + 1).
     induction' n with n hn
-    · dsimp [r, F, B]
-      exact min_le_right _ _
-    · exact HB n (c n) (r n) (rpos n)
+    · -- Show r₀ = min(ε, B(0)) ≤ B(0).
+      -- Since r₀ = min(ε, B(0)), r₀ ≤ B(0).
+      exact min_le_right ε (B 0)
+    · -- Show rₙ₊₁ = `radius`(n, cₙ, rₙ) ≤ B(n + 1).
+      -- Since rₙ > 0 (∵ rₙ > 0 for all n),
+      -- `radius`(n, cₙ, rₙ) ≤ B(n + 1).
+      exact HB n (c n) (r n) (rpos n)
+  -- We show that cB(cₙ₊₁, rₙ₊₁) ⊆ cB(cₙ, rₙ) ∩ fₙ for all n.
   have incl : ∀ n, closedBall (c (n + 1)) (r (n + 1)) ⊆ closedBall (c n) (r n) ∩ f n := by
+    -- Let n ∈ ℕ.
     intro n
+    -- By the definition of `center` and `radius`,
+    -- with rₙ > 0 (∵ rₙ > 0 for all n),
+    -- cB(cₙ₊₁, rₙ₊₁) = cB(`center`(n, cₙ, rₙ), `radius`(n, cₙ, rₙ))
+    --                ⊆ cB(cₙ, rₙ) ∩ fₙ.
     exact Hball n (c n) (r n) (rpos n)
+  -- We show that dist(cₙ, cₙ₊₁) ≤ B(n) for all n.
   have cdist : ∀ n, dist (c n) (c (n + 1)) ≤ B n := by
+    -- Let n ∈ ℕ.
     intro n
-    have := (rpos (n + 1) |> le_of_lt |> mem_closedBall_self |> incl n).left
+    -- Since rₙ₊₁ > 0 (∵ rₙ₊₁ > 0 for all n), rₙ₊₁ ≥ 0.
+    -- Then, cₙ₊₁ ∈ cB(cₙ₊₁, rₙ₊₁) (∵ cₙ₊₁ is the center of the ball).
+    -- Since cB(cₙ₊₁, rₙ₊₁) ⊆ cB(cₙ, rₙ) ∩ fₙ, cₙ₊₁ ∈ cB(cₙ, rₙ) ∩ fₙ.
+    -- Thus, cₙ₊₁ ∈ cB(cₙ, rₙ).
+    have : c (n + 1) ∈ closedBall (c n) (r n) :=
+      (rpos (n + 1) |> le_of_lt |> mem_closedBall_self |> incl n).left
+    -- Then, dist(cₙ, cₙ₊₁) ≤ rₙ.
     rw [mem_closedBall'] at this
+    -- Since rₙ ≤ B(n), dist(cₙ, cₙ₊₁) ≤ B(n).
     exact le_trans this (rB n)
+  -- Using that and the above result, we show that the sequence (cₙ) is Cauchy.
   have : CauchySeq c := cauchySeq_of_le_geometric_two' cdist
-  -- as the sequence `c n` is Cauchy in a complete space, it converges to a limit `y`.
+  -- As (cₙ) is Cauchy in a complete space, it converges to a limit y.
   rcases cauchySeq_tendsto_of_complete this with ⟨y, ylim⟩
-  -- this point `y` will be the desired point. We will check that it belongs to all
-  -- `f n` and to `ball x ε`.
+  -- Use y.
+  -- Show y ∈ ⋂ fₙ and y ∈ cB(x, ε).
   use y
+  -- We have that ∀ n ∈ ℕ, ∀ m ≥ n, cB(cₘ, rₘ) ⊆ cB(cₙ, rₙ).
   have I : ∀ n, ∀ m ≥ n, closedBall (c m) (r m) ⊆ closedBall (c n) (r n) := by
+    -- Let n ∈ ℕ.
     intro n
+    -- We prove by induction on m.
     apply Nat.le_induction
-    · exact subset_refl _
-    · intro m _ hss
-      exact (incl m).trans (Set.inter_subset_left.trans hss)
+    · -- Show cB(cₙ, rₙ) ⊆ cB(cₙ, rₙ).
+      exact subset_refl (closedBall (c n) (r n))
+    · -- Show ∀ m ≥ n, cB(cₘ, rₘ) ⊆ cB(cₙ, rₙ) → cB(cₘ₊₁, rₘ₊₁) ⊆ cB(cₙ, rₙ).
+      -- Let m ≥ n. Suppose cB(cₘ, rₘ) ⊆ cB(cₙ, rₙ).
+      -- Show cB(cₘ₊₁, rₘ₊₁) ⊆ cB(cₙ, rₙ).
+      intro m _ hss
+      -- cB(cₘ₊₁, rₘ₊₁) ⊆ cB(cₘ, rₘ) ∩ fₘ ⊆ cB(cₘ, rₘ) ⊆ cB(cₙ, rₙ)
+      exact ((incl m).trans Set.inter_subset_left).trans hss
+  -- Then, ∀ n ∈ ℕ, y ∈ cB(cₙ, rₙ).
   have yball : ∀ n, y ∈ closedBall (c n) (r n) := by
+    -- Let n ∈ ℕ.
+    -- Show y ∈ cB(cₙ, rₙ).
     intro n
+    -- Since cB(cₙ, rₙ) is closed,
+    -- for the limit y of the sequence (cₙ) to be in cB(cₙ, rₙ),
+    -- it suffices to show that cₘ ∈ cB(cₘ, rₘ) for sufficiently large m.
     apply isClosed_ball.mem_of_tendsto ylim
+    -- Equivalently, show that for all m ≥ n, cₘ ∈ cB(cₙ, rₙ).
     apply (eventually_ge_atTop n).mono
+    -- Let m ≥ n.
     intro m hnm
+    -- Since m ∈ ℕ, r(m) > 0 and hence r(m) ≥ 0.
+    -- Then, c(m) ∈ cB(c(m), r(m)).
+    -- Since m ≥ n, cB(c(m), r(m)) ⊆ cB(c(n), r(n)),
+    -- i.e., c(m) ∈ cB(c(n), r(n)).
     exact rpos m |> le_of_lt |> mem_closedBall_self |> I n m hnm
   constructor
-  · rw [mem_iInter]
+  · -- Show y ∈ ⋂ fₙ.
+    -- Equivalently, show ∀ n ∈ ℕ, y ∈ fₙ.
+    rw [mem_iInter]
+    -- Let n ∈ ℕ.
     intro n
+    -- Since y ∈ cB(cₙ₊₁, rₙ₊₁) (∵ y ∈ cB(cₙ, rₙ) for all n),
+    -- and cB(cₙ₊₁, rₙ₊₁) ⊆ cB(cₙ, rₙ) ∩ fₙ ⊆ fₙ,
+    -- y ∈ fₙ.
     exact ((n + 1) |> yball |> incl n).right
-  · rw [mem_closedBall]
-    have := yball 0
-    rw [mem_closedBall] at this
-    dsimp [c, r, F] at this
-    exact le_trans this (min_le_left _ _)
+  · -- Show y ∈ cB(x, ε).
+    -- Equivalently, show dist(y, x) ≤ ε.
+    rw [mem_closedBall]
+    -- We have y ∈ cB(c₀, r₀) = cB(x, min(ε, B(0))).
+    -- Then, dist(y, x) ≤ r₀ = min(ε, B(0)).
+    -- Thus, dist(y, x) ≤ min(ε, B(0)) ≤ ε.
+    exact le_trans (yball 0) (min_le_left ε (B 0))
