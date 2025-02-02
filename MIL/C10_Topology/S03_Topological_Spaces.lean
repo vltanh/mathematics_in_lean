@@ -621,17 +621,237 @@ example {Z : Type*} {ι : Type*} (X : ι → Type*) (f : Z → Π i, X i) (T_Z :
   simp_rw [coinduced_compose]
   simp_rw [← continuous_iff_coinduced_le]
 
+-- 10.3.2. Separation and countability
+
+-- Separation axioms are properties of topological spaces
+-- that impose constraints on the topology of the space
+-- to ensure that points and sets can be separated from each other.
+
+-- T2 (Hausdorff) space:
+-- A topological space X is Hausdorff if for any two distinct points x, y ∈ X,
+-- there exist disjoint open sets U, V ∈ X such that x ∈ U and y ∈ V.
+example [TopologicalSpace X] [T2Space X] {x y : X} (hxy : x ≠ y) :
+  ∃ U V : Set X, IsOpen U ∧ IsOpen V ∧ x ∈ U ∧ y ∈ V ∧ Disjoint U V :=
+  t2_separation hxy
+
+-- The indiscrete topology on a space X
+def IndiscreteTopology {X : Type*} : TopologicalSpace X where
+  IsOpen U := U = ∅ ∨ U = univ
+  isOpen_univ := Or.inr rfl
+  isOpen_inter U V := by
+    rintro (rfl | rfl) (rfl | rfl)
+    constructor
+    · exact empty_inter ∅
+    · exact Or.inl (empty_inter univ)
+    constructor
+    · exact inter_empty univ
+    · exact Or.inr (univ_inter univ)
+  isOpen_sUnion S := fun h => sUnion_mem_empty_univ h
+
+-- The indiscrete topology on a space with at least two points is not Hausdorff.
+example {X : Type*} (h' : ∃ x y : X, x ≠ y) :
+    ¬ @T2Space X IndiscreteTopology := by
+  -- Let T be the indiscrete topology on X.
+  -- Suppose T is Hausdorff.
+  intro hT2
+  -- Let x, y ∈ X be distinct points.
+  rcases h' with ⟨x, y, hxy⟩
+  -- Since T is Hausdorff, there exist disjoint open sets U, V ∈ X
+  -- such that x ∈ U and y ∈ V.
+  rcases hT2.t2 hxy with ⟨U, V, hU, hV, hxU, hyV, hUV⟩
+  -- Since T is the indiscrete topology, U = ∅ or U = univ
+  -- and V = ∅ or V = univ.
+  -- If U = ∅, then x ∈ U is contradictory.
+  -- If U = univ,
+  --   if V = ∅, then y ∈ V is contradictory.
+  --   if V = univ, then U and V being disjoint is contradictory.
+  rcases hU with (rfl | rfl)
+  · exact hxU
+  · rcases hV with (rfl | rfl)
+    · exact hyV
+    · rw [univ_disjoint] at hUV
+      rw [hUV] at hxU
+      exact hxU
+
+-- In a Hausdorff space, the limit of a sequence is unique.
 example [TopologicalSpace X] [T2Space X] {u : ℕ → X} {a b : X} (ha : Tendsto u atTop (𝓝 a))
     (hb : Tendsto u atTop (𝓝 b)) : a = b :=
   tendsto_nhds_unique ha hb
 
+-- In the topological space X with the indiscrete topology,
+-- every sequence converges to every point.
+-- (thus, the limit of a sequence is not unique)
+example [T : TopologicalSpace X] {u : ℕ → X} {a : X} {h : T = IndiscreteTopology} :
+  Tendsto u atTop (𝓝 a) := by
+  rw [tendsto_nhds]
+  intro S hS
+  rw [h] at hS
+  rcases hS with (rfl | rfl)
+  · exact False.elim
+  · exact fun _ => univ_mem
+
+-- T3 (Regular) space:
+-- A topological space X is regular if for any point x ∈ X and any closed set F ⊆ X
+-- such that x ∉ F, x and F admit disjoint neighborhoods.
+example [TopologicalSpace X] [T3Space X] {x : X} {F : Set X} (hx : x ∉ F) (hF : IsClosed F) :
+  Disjoint (𝓝ˢ F) (𝓝 x) :=
+  RegularSpace.regular hF hx
+
+-- A regular space is Hausdorff.
+example [TopologicalSpace X] [T3Space X] : T2Space X :=
+  T3Space.t25Space.t2Space
+
+-- Additionally, in a regular space, each point has a basis of closed neighborhoods.
 example [TopologicalSpace X] [RegularSpace X] (a : X) :
     (𝓝 a).HasBasis (fun s : Set X ↦ s ∈ 𝓝 a ∧ IsClosed s) id :=
   closed_nhds_basis a
 
+-- On the other hand, a topological space only has a basis of open neighborhoods.
 example [TopologicalSpace X] {x : X} :
     (𝓝 x).HasBasis (fun t : Set X ↦ t ∈ 𝓝 x ∧ IsOpen t) id :=
   nhds_basis_opens' x
+
+-- Example: The K-topology on ℝ is
+def KTopologicalSpace [StdTopo : TopologicalSpace ℝ] (K : Set ℝ) : TopologicalSpace ℝ where
+  IsOpen s := ∃ U B, IsOpen[StdTopo] U ∧ B ⊆ K ∧ (s = U \ B)
+  isOpen_univ := by
+    use univ, ∅
+    exact ⟨StdTopo.isOpen_univ, empty_subset K, diff_empty.symm⟩
+  isOpen_inter := by
+    rintro s t ⟨Us, Bs, hUs, hBsK, rfl⟩ ⟨Ut, Bt, hUt, hBtK, rfl⟩
+    use Us ∩ Ut, Bs ∪ Bt
+    constructor
+    · exact StdTopo.isOpen_inter Us Ut hUs hUt
+    · constructor
+      · exact union_subset hBsK hBtK
+      · rw [diff_eq, diff_eq, inter_inter_inter_comm, ← compl_union, ← diff_eq]
+  isOpen_sUnion := by
+    -- Let S be a collection of subsets of ℝ.
+    -- Suppose each s ∈ S is of the form Uₛ \ Bₛ
+    -- for some open set Uₛ and some subset Bₛ ⊆ K.
+    intro S hS
+    choose! U B hU hB hUB using hS
+
+    -- Approach 1:
+    -- -- Let U = ⋃ s ∈ S, Uₛ and B = {x ∈ K | ∀ s ∈ S, x ∈ Uₛ → x ∈ Bₛ}.
+    -- use (⋃ s ∈ S, U s), {x ∈ K | ∀ s ∈ S, x ∈ U s → x ∈ B s}
+    -- constructor
+    -- · rw [← sUnion_image]
+    --   apply StdTopo.isOpen_sUnion
+    --   rintro V ⟨U', hU'S, rfl⟩
+    --   exact hU U' hU'S
+    -- · constructor
+    --   · exact sep_subset K fun x ↦ ∀ s ∈ S, x ∈ U s → x ∈ B s
+    --   · ext x
+    --     constructor
+    --     · intro h'
+    --       rw [mem_diff]
+    --       rcases h' with ⟨s, hsS, hxs⟩
+    --       rw [hUB s hsS] at hxs
+    --       rcases hxs with ⟨hxUs, hxnBs⟩
+    --       constructor
+    --       · exact mem_biUnion hsS hxUs
+    --       · contrapose! hxnBs
+    --         rcases hxnBs with ⟨_, h⟩
+    --         exact h s hsS hxUs
+    --     · intro h'
+    --       rw [mem_diff] at h'
+    --       rcases h' with ⟨hxUUs, h'⟩
+    --       rw [nmem_setOf_iff] at h'
+    --       push_neg at h'
+    --       by_cases h'' : x ∈ K
+    --       · rcases h' h'' with ⟨s, hsS, hxUs, hxnBs⟩
+    --         use s, hsS
+    --         rw [hUB s hsS]
+    --         exact mem_diff_of_mem hxUs hxnBs
+    --       · rw [← sUnion_image] at hxUUs
+    --         rcases hxUUs with ⟨_, ⟨s, hsS, rfl⟩, hxUs⟩
+    --         have hxnBs : x ∉ B s := fun hxBs ↦ h'' (hB s hsS hxBs)
+    --         use s, hsS
+    --         rw [hUB s hsS]
+    --         exact mem_diff_of_mem hxUs hxnBs
+
+    -- Approach 2:
+    -- Let U = ⋃ s ∈ S, Uₛ and B = K \ ⋃ S.
+    use (⋃ s ∈ S, U s), K \ (⋃₀ S)
+    -- We need to show 3 things:
+    --   1. U is open in the standard topology.
+    --   2. B ⊆ K.
+    --   3. ⋃ S = U \ B.
+    constructor
+    · -- 1. Show: U is open in the standard topology.
+      -- Since each Uₛ is open in the standard topology,
+      -- U = ⋃ s ∈ S, Uₛ is open in the standard topology.
+      rw [← sUnion_image]
+      apply StdTopo.isOpen_sUnion
+      rintro V ⟨U', hU'S, rfl⟩
+      exact hU U' hU'S
+    · constructor
+      · -- 2. Show: B ⊆ K.
+        -- B = K \ ⋃ S, so B ⊆ K.
+        exact diff_subset
+      · -- 3. Show: ⋃ S = U \ B.
+        -- U \ B = (⋃ s ∈ S, Uₛ) \ (K \ ⋃ S)
+        --       = (⋃ s ∈ S, Uₛ) ∩ (K \ ⋃ S)ᶜ
+        --       = (⋃ s ∈ S, Uₛ) ∩ (K ∩ (⋃ S)ᶜ)ᶜ
+        --       = (⋃ s ∈ S, Uₛ) ∩ (Kᶜ ∪ (⋃ S)ᶜᶜ)
+        --       = (⋃ s ∈ S, Uₛ) ∩ (Kᶜ ∪ ⋃ S)
+        --       = (⋃ s ∈ S, Uₛ) ∩ Kᶜ ∪ (⋃ s ∈ S, Uₛ) ∩ ⋃ S
+        --       = (⋃ s ∈ S, Uₛ) \ K ∪ (⋃ s ∈ S, Uₛ) ∩ ⋃ S
+        rw [diff_eq, diff_eq, compl_inter, compl_compl, inter_union_distrib_left, ← diff_eq]
+
+        -- Show: ⋃ S ⊆ ⋃ s ∈ S, Uₛ
+        have h₁ : ⋃₀ S ⊆ ⋃ s ∈ S, U s := by
+          -- Let x ∈ ⋃ S. Then, ∃ s ∈ S, x ∈ Uₛ \ Bₛ.
+          rintro x ⟨s, hsS, hxs⟩
+          rw [hUB s hsS] at hxs
+          -- Then, ∃ s ∈ S, x ∈ Uₛ. Thus, x ∈ ⋃ s ∈ S, Uₛ.
+          rw [← sUnion_image]
+          use U s, mem_image_of_mem U hsS, mem_of_mem_diff hxs
+        -- U \ B = (⋃ s ∈ S, Uₛ) \ K ∪ ⋃ S
+        rw [inter_eq_self_of_subset_right h₁]
+
+        -- Show: (⋃ s ∈ S, Uₛ) \ K ⊆ ⋃ S
+        have h₂ : (⋃ s ∈ S, U s) \ K ⊆ ⋃₀ S := by
+          -- Let x ∈ (⋃ s ∈ S, Uₛ) \ K. Then, x ∈ ⋃ s ∈ S, Uₛ and x ∉ K.
+          -- Thus, ∃ s ∈ S, x ∈ Uₛ. Consider this s.
+          intro x hx
+          rw [← sUnion_image] at hx
+          rcases hx with ⟨⟨_, ⟨s, hsS, rfl⟩, hxUs⟩, hnxK⟩
+          -- We can show that x ∉ Bₛ since x ∉ K and Bₛ ⊆ K.
+          have hxnBs : x ∉ B s := fun hxBs ↦ hnxK (hB s hsS hxBs)
+          -- Thus, x ∈ Uₛ \ Bₛ.
+          -- In other words, ∃ s ∈ S, x ∈ Uₛ \ Bₛ ∈ S.
+          -- Therefore, x ∈ ⋃ S.
+          use s, hsS
+          rw [hUB s hsS]
+          exact mem_diff_of_mem hxUs hxnBs
+        -- U \ B = ⋃ S
+        rw [union_eq_self_of_subset_left h₂]
+
+example (K : Set ℝ) : @T2Space ℝ (KTopologicalSpace K) := by
+  rw [t2Space_iff]
+  intro x y hxy
+  rcases (inferInstance : T2Space ℝ).t2 hxy with ⟨U, V, hU, hV, hxU, hyV, hUV⟩
+  have hK (S : Set ℝ) (h : IsOpen S) : IsOpen[KTopologicalSpace K] S := by
+    use S, ∅
+    exact ⟨h, empty_subset K, diff_empty.symm⟩
+  use U, V, hK U hU, hK V hV, hxU, hyV, hUV
+
+  def K : Set ℝ := Set.range (fun (n : ℕ) => 1 / (n + 1))
+
+-- example : ¬ @RegularSpace ℝ (KTopologicalSpace K) := by
+--   -- Assume regularity and derive a contradiction.
+--   intro h_reg
+--   rw [regularSpace_iff] at h_reg
+--   have hKclosed : IsClosed[KTopologicalSpace K] K := by
+--     rw [← @isOpen_compl_iff]
+--     have : Kᶜ = univ ∩ Kᶜ := by rw [univ_inter]
+--     rw [this]
+--     sorry
+--   have h0notinK: 0 ∉ K := by sorry
+--   have := h_reg hKclosed h0notinK
+--   sorry
 
 theorem aux {X Y A : Type*} [TopologicalSpace X] {c : A → X}
       {f : A → Y} {x : X} {F : Filter Y}
