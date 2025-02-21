@@ -1141,45 +1141,125 @@ example [TopologicalSpace X] [FirstCountableTopology X]
     a ∈ closure s ↔ ∃ u : ℕ → X, (∀ n, u n ∈ s) ∧ Tendsto u atTop (𝓝 a) :=
   mem_closure_iff_seq_limit
 
+-- Let X be a topological space.
 variable [TopologicalSpace X]
 
+-- A point x ∈ X is a cluster point of a filter F on X if
+-- every neighborhood of x intersects every set in F.
 example {F : Filter X} {x : X} : ClusterPt x F ↔ NeBot (𝓝 x ⊓ F) :=
   Iff.rfl
 
+-- A set s ⊆ X is compact if every non-trivial filter that is finer than the
+-- principal filter of s has a cluster point in s.
 example {s : Set X} :
     IsCompact s ↔ ∀ (F : Filter X) [NeBot F], F ≤ 𝓟 s → ∃ a ∈ s, ClusterPt a F :=
   Iff.rfl
 
+-- Example: F = u(`atTop`)
+--   F ≤ 𝓟(s)
+--     means uₙ ∈ s for sufficiently large n
+--   x is a cluster point of F means
+--     image of large numbers under u intersects the neighborhood filter of x
+--     i.e., there are infinitely many n such that uₙ is in some neighborhood of x
+--   if 𝓝(x) has a countable basis
+--     then (uₙ) has a subsequence converging to x
+
+-- Let
+--   s: subset of X
+--   u: sequence in X
+-- If
+--   s is compact
+--   uₙ ∈ s for all n
+-- Then:
+--   there exists x ∈ s and
+--   a subsequence of u that converges to x (indexed by φ : ℕ → ℕ).
 example [FirstCountableTopology X] {s : Set X} {u : ℕ → X} (hs : IsCompact s)
-    (hu : ∀ n, u n ∈ s) : ∃ a ∈ s, ∃ φ : ℕ → ℕ, StrictMono φ ∧ Tendsto (u ∘ φ) atTop (𝓝 a) :=
+    (hu : ∀ n, u n ∈ s) : ∃ x ∈ s, ∃ φ : ℕ → ℕ, StrictMono φ ∧ Tendsto (u ∘ φ) atTop (𝓝 x) :=
   hs.tendsto_subseq hu
 
+-- Let Y be a topological space.
 variable [TopologicalSpace Y]
 
+-- Continuous functions preserve cluster points.
+-- Let
+--   x: point in X
+--   F, G: filter on X, Y
+--   f: mapping from X to Y
+-- If
+--   x is a cluster point of F
+--   f is continuous at x
+--   f tends to G along F
+-- Then:
+--   f(x) is a cluster point of G.
 example {x : X} {F : Filter X} {G : Filter Y} (H : ClusterPt x F) {f : X → Y}
     (hfx : ContinuousAt f x) (hf : Tendsto f F G) : ClusterPt (f x) G :=
-  ClusterPt.map H hfx hf
+  H.map hfx hf
 
+-- The image of a compact set under a continuous function is compact.
+-- Let
+--   X, Y: topological spaces
+--   f: mapping from X to Y
+--   s: subset of X
+-- If
+--   f is continuous
+--   s is compact
+-- Then:
+--   f(s) is compact.
 example [TopologicalSpace Y] {f : X → Y} (hf : Continuous f) {s : Set X} (hs : IsCompact s) :
     IsCompact (f '' s) := by
-  intro F F_ne F_le
-  have map_eq : map f (𝓟 s ⊓ comap f F) = 𝓟 (f '' s) ⊓ F := by
+  -- Suppose G is a non-trivial filter on Y and G ≤ 𝓟(f(s)).
+  -- Show there exists a cluster point of G in f(s).
+  intro G G_ne G_le
+  -- We show that f(𝓟(s) ⊓ f⁻¹(G)) = 𝓟(f(s)) ⊓ G
+  have map_eq : map f (𝓟 s ⊓ comap f G) = 𝓟 (f '' s) ⊓ G := by
+    -- f(𝓟(s) ⊓ f⁻¹(G)) = f(𝓟(s)) ⊓ G
     rw [Filter.push_pull]
+    -- f(𝓟(s)) = 𝓟(f(s))
     rw [map_principal]
-  have Hne : (𝓟 s ⊓ comap f F).NeBot := by
+  -- We show that 𝓟(s) ⊓ f⁻¹(G) is non-trivial.
+  have Hne : (𝓟 s ⊓ comap f G).NeBot := by
+    -- To show that 𝓟(s) ⊓ f⁻¹(G) is non-trivial,
+    -- we show that f(𝓟(s) ⊓ f⁻¹(G)) is non-trivial
+    -- because if the image of a filter is non-trivial,
+    -- then the filter is non-trivial.
     apply NeBot.of_map
+    -- From above, f(𝓟(s) ⊓ f⁻¹(G)) = 𝓟(f(s)) ⊓ G.
     rw [map_eq]
-    rw [inf_of_le_right F_le]
-    exact F_ne
-  have Hle : 𝓟 s ⊓ comap f F ≤ 𝓟 s := inf_le_left
+    -- Since G ≤ 𝓟(f(s)), 𝓟(f(s)) ⊓ G = G.
+    rw [inf_of_le_right G_le]
+    -- Since G is non-trivial, 𝓟(f(s)) ⊓ G is non-trivial.
+    exact G_ne
+  -- Since s is compact and 𝓟(s) ⊓ f⁻¹(G) ≤ 𝓟(s),
+  -- there exists a cluster point x of 𝓟(s) ⊓ f⁻¹(G) in s.
+  have Hle : 𝓟 s ⊓ comap f G ≤ 𝓟 s := inf_le_left
   rcases hs Hle with ⟨x, hxs, hclsptx⟩
+  -- We show that f(x) is a cluster point of G in f(s).
   use f x
   constructor
-  · exact mem_image_of_mem f hxs
-  · apply hclsptx.map hf.continuousAt
+  · -- Since x ∈ s, f(x) ∈ f(s).
+    exact mem_image_of_mem f hxs
+  · -- Since f is continuous, it is continuous at x.
+    -- Since x is a cluster point of 𝓟(s) ⊓ f⁻¹(G)
+    -- it will be a cluster point of f(𝓟(s) ⊓ f⁻¹(G)) = 𝓟(f(s)) ⊓ G = G
+    -- if f tends to G along 𝓟(s) ⊓ f⁻¹(G).
+    apply hclsptx.map hf.continuousAt
+    -- Show f(𝓟(s) ⊓ f⁻¹(G)) ≤ G.
+    -- From above, f(𝓟(s) ⊓ f⁻¹(G)) = 𝓟(f(s)) ⊓ G,
+    -- and 𝓟(f(s)) ⊓ G ≤ G.
     rw [Tendsto, map_eq]
     exact inf_le_right
 
+-- s is compact if every open cover has a finite subcover.
+-- Let
+--   X: topological space
+--   s: subset of X
+--   (Uᵢ : i ∈ ι) : collection of subsets of X indexed by ι
+-- If
+--   s is compact
+--   Uᵢ is open for all i
+--   s ⊆ ⋃ i, Uᵢ
+-- Then:
+--   there exists a finite subset t ⊆ ι such that s ⊆ ⋃ { Uᵢ : i ∈ t }.
 example {ι : Type*} {s : Set X} (hs : IsCompact s) (U : ι → Set X) (hUo : ∀ i, IsOpen (U i))
     (hsU : s ⊆ ⋃ i, U i) : ∃ t : Finset ι, s ⊆ ⋃ i ∈ t, U i :=
   hs.elim_finite_subcover U hUo hsU
